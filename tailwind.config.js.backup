@@ -1,0 +1,33 @@
+import tailwindcssAnimate from "tailwindcss-animate";
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: '#04081d',
+        foreground: '#f8fafc',
+        muted: '#1e293b',
+        'muted-foreground': '#94a3b8',
+        border: '#1e293b',
+        primary: '#3b82f6',
+        'primary-foreground': '#ffffff',
+        secondary: '#0c192d',
+        accent: '#0c182a',
+        'accent-foreground': '#f8fafc',
+        'footer-bg': '#090e25',
+        'footer-text': '#94a3b8',
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+    },
+  },
+  plugins: [tailwindcssAnimate],
+}
