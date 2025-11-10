@@ -156,7 +156,7 @@ function TaskTable({
               return (
                 <TableRow
                   key={task.id}
-                  className={cn("border-t border-border last:h-[47.5px]", isCompleted && "opacity-60")}
+                  className={cn("border-t border-border last:h-[48px]", isCompleted && "opacity-60")}
                 >
                   <TableCell>
                     <button
@@ -306,7 +306,7 @@ function TaskTable({
   {isActive && !isAddingTask && (
 <button
   onClick={handleStartAddingTask}
-  className="w-full h-[48.5px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
+  className="w-full h-[48px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
   aria-label="Add new task"
 >
   <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:bg-muted group-hover:text-foreground group-hover:border group-hover:border-border border border-transparent">
