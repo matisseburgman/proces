@@ -7,6 +7,7 @@ import {
   IoEyeOffOutline,
   IoCheckmarkCircleOutline,
   IoSwapVertical,
+  IoSettingsOutline,
   IoSparklesOutline, // ← Voor confetti
   IoVolumeHighOutline, // ← Voor sound
   IoVolumeMuteOutline, // ← Voor sound muted
@@ -21,6 +22,7 @@ import PrioritySelector from "@/components/PrioritySelector";
 import ProjectSelector from "@/components/ProjectSelector";
 import EditableText from "@/components/EditableText";
 import TaskTable from "@/components/TaskTable";
+import SettingsSidebar from "@/components/SettingsSidebar";
 
 // UI Components
 import {
@@ -38,27 +40,29 @@ import { cn } from "@/lib/utils";
 // Helper: check of een datum vandaag is (na 3:00 AM Amsterdam tijd)
 function isToday(dateString) {
   if (!dateString) return false;
-  
+
   // Parse de completed_at tijd in Amsterdam timezone
   const completedDate = new Date(dateString);
-  
+
   // Krijg huidige tijd in Amsterdam
   const now = new Date();
-  const amsterdamTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
-  
+  const amsterdamTime = new Date(
+    now.toLocaleString("en-US", { timeZone: "Europe/Amsterdam" })
+  );
+
   // Bereken de "day boundary" (vandaag om 3:00 AM Amsterdam tijd)
   const todayAt3AM = new Date(amsterdamTime);
   todayAt3AM.setHours(3, 0, 0, 0);
-  
+
   // Als het nu vóór 3:00 AM is, gebruik gisteren om 3:00 AM als boundary
   if (amsterdamTime.getHours() < 3) {
     todayAt3AM.setDate(todayAt3AM.getDate() - 1);
   }
-  
+
   // Bereken morgen om 3:00 AM als upper boundary
   const tomorrowAt3AM = new Date(todayAt3AM);
   tomorrowAt3AM.setDate(tomorrowAt3AM.getDate() + 1);
-  
+
   // Check of completed_at tussen vandaag 3AM en morgen 3AM valt
   return completedDate >= todayAt3AM && completedDate < tomorrowAt3AM;
 }
@@ -78,6 +82,7 @@ export default function TasksPage({ session }) {
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
   const [sortByPriority, setSortByPriority] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Editing state
   const [editingTask, setEditingTask] = useState(null);
@@ -99,7 +104,9 @@ export default function TasksPage({ session }) {
   // Audio ref - initialize once
   const completeSoundRef = useRef(null);
   useEffect(() => {
-    completeSoundRef.current = new Audio("/sounds/Success%20Sound%20Effect.mp3");
+    completeSoundRef.current = new Audio(
+      "/sounds/Success%20Sound%20Effect.mp3"
+    );
     completeSoundRef.current.volume = 0.3;
     return () => {
       if (completeSoundRef.current) {
@@ -163,93 +170,100 @@ export default function TasksPage({ session }) {
   }, [fetchTasks]);
 
   // Update task project
-  const updateTaskProject = useCallback(async (taskId, projectId) => {
-    // Optimistic update
-    setTasks((prevTasks) =>
-      prevTasks.map((t) => {
-        if (t.id === taskId) {
-          const project = projects.find((p) => p.id === parseInt(projectId));
-          return {
-            ...t,
-            project_id: projectId ? parseInt(projectId) : null,
-            projects: project || null,
-          };
-        }
-        return t;
-      })
-    );
+  const updateTaskProject = useCallback(
+    async (taskId, projectId) => {
+      // Optimistic update
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === taskId) {
+            const project = projects.find((p) => p.id === parseInt(projectId));
+            return {
+              ...t,
+              project_id: projectId ? parseInt(projectId) : null,
+              projects: project || null,
+            };
+          }
+          return t;
+        })
+      );
 
-    // Database update
-    const { error } = await supabase
-      .from("tasks")
-      .update({ project_id: projectId || null })
-      .eq("id", taskId);
+      // Database update
+      const { error } = await supabase
+        .from("tasks")
+        .update({ project_id: projectId || null })
+        .eq("id", taskId);
 
-    if (error) {
-      console.error("Error updating project:", error);
-      fetchTasks();
-      return; // ← Stop hier bij error
-    }
-
-    // ✨ NIEUW: Update last_used_at timestamp voor het project
-    if (projectId) {
-      const { error: projectError } = await supabase
-        .from("projects")
-        .update({ last_used_at: new Date().toISOString() })
-        .eq("id", parseInt(projectId));
-
-      if (projectError) {
-        console.error("Error updating project timestamp:", projectError);
+      if (error) {
+        console.error("Error updating project:", error);
+        fetchTasks();
+        return; // ← Stop hier bij error
       }
 
-      // ✨ NIEUW: Update lokale projects state met nieuwe timestamp
-      setProjects((prevProjects) =>
-        prevProjects.map((p) =>
-          p.id === parseInt(projectId)
-            ? { ...p, last_used_at: new Date().toISOString() }
-            : p
-        )
-      );
-    }
-  }, [projects, fetchTasks]);
+      // ✨ NIEUW: Update last_used_at timestamp voor het project
+      if (projectId) {
+        const { error: projectError } = await supabase
+          .from("projects")
+          .update({ last_used_at: new Date().toISOString() })
+          .eq("id", parseInt(projectId));
+
+        if (projectError) {
+          console.error("Error updating project timestamp:", projectError);
+        }
+
+        // ✨ NIEUW: Update lokale projects state met nieuwe timestamp
+        setProjects((prevProjects) =>
+          prevProjects.map((p) =>
+            p.id === parseInt(projectId)
+              ? { ...p, last_used_at: new Date().toISOString() }
+              : p
+          )
+        );
+      }
+    },
+    [projects, fetchTasks]
+  );
 
   // Add new project
-  const addNewProject = useCallback(async (projectName) => {
-    const colors = [
-      "#ef4444",
-      "#f59e0b",
-      "#10b981",
-      "#3b82f6",
-      "#8b5cf6",
-      "#ec4899",
-    ];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  const addNewProject = useCallback(
+    async (projectName) => {
+      const colors = [
+        "#ef4444",
+        "#f59e0b",
+        "#10b981",
+        "#3b82f6",
+        "#8b5cf6",
+        "#ec4899",
+      ];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-    const { data, error } = await supabase
-      .from("projects")
-      .insert([
-        {
-          name: projectName,
-          color: randomColor,
-          user_id: session.user.id,
-        },
-      ])
-      .select();
+      const { data, error } = await supabase
+        .from("projects")
+        .insert([
+          {
+            name: projectName,
+            color: randomColor,
+            user_id: session.user.id,
+          },
+        ])
+        .select();
 
-    if (error) {
-      console.error("Error adding project:", error);
-    } else {
-      // Update de projects lijst
-      setProjects((prevProjects) => [...prevProjects, data[0]]);
+      if (error) {
+        console.error("Error adding project:", error);
+      } else {
+        // Update de projects lijst
+        setProjects((prevProjects) => [...prevProjects, data[0]]);
 
-      // Return het nieuwe project zodat ProjectSelector het kan gebruiken
-      return data[0];
-    }
-  }, [session.user.id]);
+        // Return het nieuwe project zodat ProjectSelector het kan gebruiken
+        return data[0];
+      }
+    },
+    [session.user.id]
+  );
 
   // Memoized computed values
   const activeTasks = useMemo(
-    () => tasks.filter((task) => !task.completed || pendingComplete.has(task.id)),
+    () =>
+      tasks.filter((task) => !task.completed || pendingComplete.has(task.id)),
     [tasks, pendingComplete]
   );
 
@@ -309,7 +323,6 @@ export default function TasksPage({ session }) {
     }
   }, []);
 
-
   // Timeout refs for pending complete animations
   const timeoutRefs = useRef(new Map());
 
@@ -321,104 +334,109 @@ export default function TasksPage({ session }) {
     };
   }, []);
 
-  const toggleTask = useCallback(async (taskId, clickEvent) => {
-    const scrollY = window.scrollY;
+  const toggleTask = useCallback(
+    async (taskId, clickEvent) => {
+      const scrollY = window.scrollY;
 
-    if (document.activeElement?.tagName === "INPUT") {
-      document.activeElement.blur();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-
-    const task = tasks.find((t) => t.id === taskId);
-    const newCompletedState = !task.completed;
-
-    // Confetti + sound bij completion
-    if (newCompletedState && clickEvent) {
-      const x = clickEvent.clientX / window.innerWidth;
-      const y = clickEvent.clientY / window.innerHeight;
-
-      if (confettiEnabled) {
-        confetti({
-          particleCount: 5,
-          spread: 15,
-          origin: { x, y },
-          colors: ["#ff6b35", "#ef4444", "#a16207", "#f59e0b", "#fbbf24"],
-          ticks: 70,
-          startVelocity: 13,
-          gravity: 1.4,
-        });
+      if (document.activeElement?.tagName === "INPUT") {
+        document.activeElement.blur();
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
-      if (soundEnabled && completeSoundRef.current) {
-        completeSoundRef.current.currentTime = 0;
-        completeSoundRef.current.play().catch((err) => console.log("Audio failed"));
-      }
-    }
+      const task = tasks.find((t) => t.id === taskId);
+      const newCompletedState = !task.completed;
 
-    try {
-      // ✨ NIEUWE CODE: sla completed_at timestamp op
-      const updateData = {
-        completed: newCompletedState,
-        completed_at: newCompletedState ? new Date().toISOString() : null,
-      };
+      // Confetti + sound bij completion
+      if (newCompletedState && clickEvent) {
+        const x = clickEvent.clientX / window.innerWidth;
+        const y = clickEvent.clientY / window.innerHeight;
 
-      const { error } = await supabase
-        .from("tasks")
-        .update(updateData)
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      if (newCompletedState) {
-        if (timeoutRefs.current.has(taskId)) {
-          clearTimeout(timeoutRefs.current.get(taskId));
+        if (confettiEnabled) {
+          confetti({
+            particleCount: 5,
+            spread: 15,
+            origin: { x, y },
+            colors: ["#ff6b35", "#ef4444", "#a16207", "#f59e0b", "#fbbf24"],
+            ticks: 70,
+            startVelocity: 13,
+            gravity: 1.4,
+          });
         }
 
-        setPendingComplete((prev) => new Set(prev).add(taskId));
+        if (soundEnabled && completeSoundRef.current) {
+          completeSoundRef.current.currentTime = 0;
+          completeSoundRef.current
+            .play()
+            .catch((err) => console.log("Audio failed"));
+        }
+      }
 
-        const timeoutId = setTimeout(() => {
+      try {
+        // ✨ NIEUWE CODE: sla completed_at timestamp op
+        const updateData = {
+          completed: newCompletedState,
+          completed_at: newCompletedState ? new Date().toISOString() : null,
+        };
+
+        const { error } = await supabase
+          .from("tasks")
+          .update(updateData)
+          .eq("id", taskId);
+
+        if (error) throw error;
+
+        if (newCompletedState) {
+          if (timeoutRefs.current.has(taskId)) {
+            clearTimeout(timeoutRefs.current.get(taskId));
+          }
+
+          setPendingComplete((prev) => new Set(prev).add(taskId));
+
+          const timeoutId = setTimeout(() => {
+            setPendingComplete((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(taskId);
+              return newSet;
+            });
+            timeoutRefs.current.delete(taskId);
+          }, 4000);
+
+          timeoutRefs.current.set(taskId, timeoutId);
+        } else {
+          if (timeoutRefs.current.has(taskId)) {
+            clearTimeout(timeoutRefs.current.get(taskId));
+            timeoutRefs.current.delete(taskId);
+          }
+
           setPendingComplete((prev) => {
             const newSet = new Set(prev);
             newSet.delete(taskId);
             return newSet;
           });
-          timeoutRefs.current.delete(taskId);
-        }, 4000);
-
-        timeoutRefs.current.set(taskId, timeoutId);
-      } else {
-        if (timeoutRefs.current.has(taskId)) {
-          clearTimeout(timeoutRefs.current.get(taskId));
-          timeoutRefs.current.delete(taskId);
         }
 
-        setPendingComplete((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(taskId);
-          return newSet;
+        // ✨ NIEUWE CODE: update ook completed_at in local state
+        setTasks(
+          tasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  completed: newCompletedState,
+                  completed_at: updateData.completed_at,
+                }
+              : t
+          )
+        );
+
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY);
         });
+      } catch (error) {
+        console.error("Error updating task:", error.message);
       }
-
-      // ✨ NIEUWE CODE: update ook completed_at in local state
-      setTasks(
-        tasks.map((t) =>
-          t.id === taskId
-            ? {
-                ...t,
-                completed: newCompletedState,
-                completed_at: updateData.completed_at,
-              }
-            : t
-        )
-      );
-
-      requestAnimationFrame(() => {
-        window.scrollTo(0, scrollY);
-      });
-    } catch (error) {
-      console.error("Error updating task:", error.message);
-    }
-  }, [tasks, confettiEnabled, soundEnabled]);
+    },
+    [tasks, confettiEnabled, soundEnabled]
+  );
 
   const addTask = useCallback(async () => {
     if (!newTask.trim()) return;
@@ -450,37 +468,40 @@ export default function TasksPage({ session }) {
     }
   }, [newTask, session.user.id]);
 
-  const updateTaskPriority = useCallback(async (taskId, priorityId) => {
-    // Update lokaal EERST (optimistic)
-    setTasks((prevTasks) =>
-      prevTasks.map((t) => {
-        if (t.id === taskId) {
-          // Vind de priority data
-          const priority = priorities.find(
-            (p) => p.id === parseInt(priorityId)
-          );
-          return {
-            ...t,
-            priority_id: priorityId ? parseInt(priorityId) : null,
-            priorities: priority || null,
-          };
-        }
-        return t;
-      })
-    );
+  const updateTaskPriority = useCallback(
+    async (taskId, priorityId) => {
+      // Update lokaal EERST (optimistic)
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => {
+          if (t.id === taskId) {
+            // Vind de priority data
+            const priority = priorities.find(
+              (p) => p.id === parseInt(priorityId)
+            );
+            return {
+              ...t,
+              priority_id: priorityId ? parseInt(priorityId) : null,
+              priorities: priority || null,
+            };
+          }
+          return t;
+        })
+      );
 
-    // Dan update database op achtergrond
-    const { error } = await supabase
-      .from("tasks")
-      .update({ priority_id: priorityId || null })
-      .eq("id", taskId);
+      // Dan update database op achtergrond
+      const { error } = await supabase
+        .from("tasks")
+        .update({ priority_id: priorityId || null })
+        .eq("id", taskId);
 
-    // Bij error, haal data opnieuw op
-    if (error) {
-      console.error("Error updating priority:", error);
-      fetchTasks();
-    }
-  }, [priorities, fetchTasks]);
+      // Bij error, haal data opnieuw op
+      if (error) {
+        console.error("Error updating priority:", error);
+        fetchTasks();
+      }
+    },
+    [priorities, fetchTasks]
+  );
 
   const updateTask = useCallback(async (taskId, field, value) => {
     try {
@@ -501,58 +522,61 @@ export default function TasksPage({ session }) {
   }, []);
 
   // Fetch user settings
-useEffect(() => {
-  async function fetchSettings() {
-    const { data, error } = await supabase
-      .from("settings")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
+  useEffect(() => {
+    async function fetchSettings() {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .single();
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        const { error: insertError } = await supabase
-          .from("settings")
-          .insert([
-            {
-              user_id: session.user.id,
-              confetti_enabled: true,
-              sound_enabled: true,
-              show_completed: true,
-              show_history: true,
-              sort_by_priority: false, // ← NIEUW
-            },
-          ]);
+      if (error) {
+        if (error.code === "PGRST116") {
+          const { error: insertError } = await supabase
+            .from("settings")
+            .insert([
+              {
+                user_id: session.user.id,
+                confetti_enabled: true,
+                sound_enabled: true,
+                show_completed: true,
+                show_history: true,
+                sort_by_priority: false, // ← NIEUW
+              },
+            ]);
 
-        if (insertError) {
-          console.error("Error creating default settings:", insertError);
+          if (insertError) {
+            console.error("Error creating default settings:", insertError);
+          }
+        } else {
+          console.error("Error fetching settings:", error);
         }
       } else {
-        console.error("Error fetching settings:", error);
+        setConfettiEnabled(data.confetti_enabled);
+        setSoundEnabled(data.sound_enabled);
+        setShowCompleted(data.show_completed);
+        setShowHistory(data.show_history);
+        setSortByPriority(data.sort_by_priority); // ← NIEUW
       }
-    } else {
-      setConfettiEnabled(data.confetti_enabled);
-      setSoundEnabled(data.sound_enabled);
-      setShowCompleted(data.show_completed);
-      setShowHistory(data.show_history);
-      setSortByPriority(data.sort_by_priority); // ← NIEUW
     }
-  }
 
-  fetchSettings();
-}, [session.user.id]);
+    fetchSettings();
+  }, [session.user.id]);
 
   // Update settings in database
-  const updateSetting = useCallback(async (key, value) => {
-    const { error } = await supabase
-      .from("settings")
-      .update({ [key]: value })
-      .eq("user_id", session.user.id);
+  const updateSetting = useCallback(
+    async (key, value) => {
+      const { error } = await supabase
+        .from("settings")
+        .update({ [key]: value })
+        .eq("user_id", session.user.id);
 
-    if (error) {
-      console.error("Error updating setting:", error);
-    }
-  }, [session.user.id]);
+      if (error) {
+        console.error("Error updating setting:", error);
+      }
+    },
+    [session.user.id]
+  );
 
   const handleToggleConfetti = useCallback(() => {
     const newValue = !confettiEnabled;
@@ -632,12 +656,25 @@ useEffect(() => {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-left">Welcome {userName}!</h1>
+          {/* Settings button (rechtsboven) */}
           <button
-            onClick={() => supabase.auth.signOut()}
-            className="px-4 py-2 bg-muted text-foreground rounded hover:bg-muted/80 transition-colors"
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-muted rounded-md transition-colors"
+            aria-label="Open settings"
           >
-            Log out
+            <IoSettingsOutline className="w-5 h-5" />
           </button>
+
+          {/* Settings Sidebar */}
+          <SettingsSidebar
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            supabase={supabase}
+            confettiEnabled={confettiEnabled}
+            soundEnabled={soundEnabled}
+            onToggleConfetti={handleToggleConfetti} // ← Was toggleConfetti, nu handleToggleConfetti
+            onToggleSound={handleToggleSound} // ← Was toggleSound, nu handleToggleSound
+          />
         </div>
 
         {/* Settings controls - rechts boven de tabel */}
@@ -654,7 +691,9 @@ useEffect(() => {
               <IoSparklesOutline
                 className={cn(
                   "w-5 h-5 transition-colors",
-                  confettiEnabled ? "text-cosmic-orange" : "text-muted-foreground"
+                  confettiEnabled
+                    ? "text-cosmic-orange"
+                    : "text-muted-foreground"
                 )}
               />
             </button>
@@ -706,7 +745,7 @@ useEffect(() => {
           BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
           sortByPriority={sortByPriority}
           setSortByPriority={setSortByPriority}
-          updateSetting={updateSetting} 
+          updateSetting={updateSetting}
         />
 
         {/* Today's Completed Tasks */}

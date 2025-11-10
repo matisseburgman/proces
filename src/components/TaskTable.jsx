@@ -207,7 +207,7 @@ function TaskTable({
                   </TableCell>
 
                   {/* Project field */}
-                  <TableCell className="w-[25%] min-w-0">
+                  <TableCell className="w-[25%] min-w-0 py-1">
                     {isActive ? (
                       <ProjectSelector
                         task={task}
@@ -230,7 +230,7 @@ function TaskTable({
                   </TableCell>
 
                   {/* Priority field */}
-                  <TableCell>
+                  <TableCell className="py-1">
                     {isActive ? (
                       <PrioritySelector
                         task={task}
@@ -273,26 +273,22 @@ function TaskTable({
                   />
                 </TableCell>
                 <TableCell>
-                  {newTask.trim() ? (
+                  {newTask.trim() && (
                     <ProjectSelector
                       projectId={newProjectId}
                       projects={projects}
                       onUpdate={(_, projectId) => setNewProjectId(projectId)}
                       onAddNew={addNewProject}
                     />
-                  ) : (
-                    <span className="text-muted-foreground/50 text-sm">-</span>
                   )}
                 </TableCell>
                 <TableCell>
-                  {newTask.trim() ? (
+                  {newTask.trim() && (
                     <PrioritySelector
                       priorityId={newPriorityId}
                       priorities={priorities}
                       onUpdate={(_, priorityId) => setNewPriorityId(priorityId)}
                     />
-                  ) : (
-                    <span className="text-muted-foreground/50 text-sm">-</span>
                   )}
                 </TableCell>
               </TableRow>
