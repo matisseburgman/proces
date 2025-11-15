@@ -1,15 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+
 import { createPortal } from "react-dom";
 import Tag from "@/components/ui/tag";
 
 // External libraries
-import {
- IoTrashOutline
-} from "react-icons/io5";
+import { IoTrashOutline, IoCreateOutline } from "react-icons/io5";
 
-
-
-function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabled, onDelete}) {
+const ProjectSelector = forwardRef(({
+  task,
+  projectId,
+  projects,
+  onUpdate,
+  onAddNew,
+  disabled,
+  onDelete,
+  onComplete,
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -17,6 +23,13 @@ function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabl
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+    // Expose focus method to parent
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      triggerRef.current?.click();
+    }
+  }));
 
   // Gebruik task.project_id als die er is, anders projectId
   const selectedProjectId = task?.project_id ?? projectId;
@@ -96,26 +109,34 @@ function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabl
     }
   };
 
-  const handleSelect = (newProjectId) => {
-    // Als we een task hebben, gebruik task.id, anders null
-    onUpdate(task?.id ?? null, newProjectId);
-    setIsOpen(false);
-  };
+const handleSelect = (newProjectId) => {
+  onUpdate(task?.id ?? null, newProjectId);
+  setIsOpen(false);
+  
+  if (onComplete) {
+    onComplete(newProjectId); // ← Geef ID door
+  }
+};
 
-  const handleAddNew = async () => {
-    if (!newProjectName.trim()) return;
+const handleAddNew = async () => {
+  if (!newProjectName.trim()) return;
 
-    const newProject = await onAddNew(newProjectName.trim());
+  const newProject = await onAddNew(newProjectName.trim());
 
-    // Selecteer het nieuwe project meteen
-    if (newProject) {
-      onUpdate(task?.id ?? null, newProject.id);
-    }
+  // Selecteer het nieuwe project meteen
+  if (newProject) {
+    onUpdate(task?.id ?? null, newProject.id);
+  }
 
-    setNewProjectName("");
-    setIsAddingNew(false);
-    setIsOpen(false);
-  };
+  setNewProjectName("");
+  setIsAddingNew(false);
+  setIsOpen(false);
+  
+  // Trigger onComplete
+  if (onComplete && newProject) {
+    onComplete(newProject.id); // ← Geef ID door
+  }
+};
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -129,98 +150,113 @@ function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabl
 
   return (
     <>
-{/* Trigger */}
-<div
-  ref={triggerRef}
-  onClick={handleOpen}
-  className="cursor-pointer block min-w-0 w-full py-1" // ← Voeg py-1 toe
->
-  {currentProject ? (
-    <Tag name={currentProject.name} color={currentProject.color} />
-  ) : (
-    <span className="text-muted-foreground text-sm truncate">&nbsp;</span>
-    // ↑ Gebruik &nbsp; voor hoogte
-  )}
-</div>
+      {/* Trigger */}
+      <div
+        ref={triggerRef}
+        onClick={handleOpen}
+        className="cursor-pointer block min-w-0 w-full py-1" // ← Voeg py-1 toe
+      >
+        {currentProject ? (
+          <Tag name={currentProject.name} color={currentProject.color} />
+        ) : (
+          <span className="text-muted-foreground text-sm truncate">&nbsp;</span>
+          // ↑ Gebruik &nbsp; voor hoogte
+        )}
+      </div>
 
       {/* Dropdown menu */}
-      {isOpen && createPortal(
-        <div
-          ref={dropdownRef}
-          style={{
-            position: "absolute",
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`,
-          }}
-          className="bg-background border border-border rounded-md shadow-lg z-[1010] min-w-[160px] py-1"
-        >
-          {/* Projects */}
-{sortedProjects.map((project) => (
-  <div
-    key={project.id}
-    className="px-3 py-2 hover:bg-muted transition-colors flex items-center justify-between group"
-  >
-    <div
-      onClick={() => handleSelect(project.id)}
-      className="flex items-center gap-2 flex-1 cursor-pointer"
-    >
-      <Tag name={project.name} color={project.color} />
-    </div>
-    
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        if (confirm(`Delete "${project.name}" project?`)) {
-          onDelete(project.id);
-        }
-      }}
-      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted hover:text-red-500"
-      title="Delete project"
-    >
-      <IoTrashOutline className="w-4 h-4" />
-    </button>
-  </div>
-            
-          ))}
-
-          {/* No project optie */}
+      {isOpen &&
+        createPortal(
           <div
-            onClick={() => handleSelect(null)}
-            className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors text-sm text-muted-foreground"
+            ref={dropdownRef}
+            style={{
+              position: "absolute",
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+            }}
+            className="bg-background border border-border rounded-md shadow-lg z-[1010] w-[270px] min-w-[120px] py-1"
           >
-            No project
-          </div>
+            {/* Projects */}
+            {sortedProjects.map((project) => (
+              <div
+                key={project.id}
+                className="px-3 py-2 hover:bg-muted transition-colors flex items-center justify-between group"
+              >
+                <div
+                  onClick={() => handleSelect(project.id)}
+                  className="flex items-center gap-2 flex-1 cursor-pointer"
+                >
+                  <Tag name={project.name} color={project.color} />
+                </div>
 
-          {/* Divider */}
-          <div className="border-t border-border my-1"></div>
+                {/* Edit button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: Open edit modal
+                    console.log("Edit project:", project.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted"
+                  title="Edit project"
+                >
+                  <IoCreateOutline className="w-4 h-4" />
+                </button>
 
-          {/* Add new */}
-          {!isAddingNew ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete "${project.name}" project?`)) {
+                      onDelete(project.id);
+                    }
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted hover:text-red-500"
+                  title="Delete project"
+                >
+                  <IoTrashOutline className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {/* No project optie */}
             <div
-              onClick={() => setIsAddingNew(true)}
-              className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors flex items-center gap-2 text-sm text-muted-foreground"
+              onClick={() => handleSelect(null)}
+              className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors text-sm text-muted-foreground"
             >
-              <span className="text-lg">+</span>
-              Add new
+              No project
             </div>
-          ) : (
-            <div className="px-3 py-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Project name..."
-                className="w-full bg-transparent border border-border rounded-sm px-2 py-1 text-sm outline-none text-foreground"
-              />
-            </div>
-          )}
-        </div>,
-        document.body
-      )}
+
+            {/* Divider */}
+            <div className="border-t border-border my-1"></div>
+
+            {/* Add new */}
+            {!isAddingNew ? (
+              <div
+                onClick={() => setIsAddingNew(true)}
+                className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <span className="text-lg">+</span>
+                Add new
+              </div>
+            ) : (
+              <div className="px-3 py-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Project name..."
+                  className="w-full bg-transparent border border-border rounded-sm px-2 py-1 text-sm outline-none text-foreground"
+                />
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
-}
+});
+
+ProjectSelector.displayName = 'ProjectSelector';
 
 export default ProjectSelector;

@@ -160,7 +160,6 @@ function EditableText({ value, onSave, placeholder = "", disabled = false }) {
           className={cn(
             "w-full bg-transparent border-none outline-none",
             "text-foreground placeholder:text-muted-foreground",
-            "text-sm font-medium",
             "focus:outline-none focus:ring-0",
             "p-0 m-0"
           )}

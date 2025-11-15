@@ -23,6 +23,7 @@ import ProjectSelector from "@/components/ProjectSelector";
 import EditableText from "@/components/EditableText";
 import TaskTable from "@/components/TaskTable";
 import SettingsSidebar from "@/components/SettingsSidebar";
+import ProjectFilter from "@/components/ProjectFilter";
 
 // UI Components
 import {
@@ -76,7 +77,8 @@ export default function TasksPage({ session }) {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [priorities, setPriorities] = useState([]);
-  const [showHistory, setShowHistory] = useState(true); // ← Nieuw!
+  const [showHistory, setShowHistory] = useState(true);
+  const [selectedProjects, setSelectedProjects] = useState([]);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -97,6 +99,7 @@ export default function TasksPage({ session }) {
 
   // Other state
   const [pendingComplete, setPendingComplete] = useState(new Set());
+
   // Settings state
   const [confettiEnabled, setConfettiEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -116,21 +119,31 @@ export default function TasksPage({ session }) {
     };
   }, []);
 
-const fetchProjects = useCallback(async () => {
-  const { data, error } = await supabase
-    .from("projects")
-    .select("*")
-    .order("last_used_at", { ascending: false, nullsFirst: false })
-    .order("name");
-  
-  if (error) {
-    console.error("Error fetching projects:", error);
-  } else {
-    setProjects(data);
+  const filterTasksByProjects = (tasks) => {
+  // Als geen projecten geselecteerd zijn, toon alles
+  if (selectedProjects.length === 0) {
+    return tasks;
   }
-}, []);
+  
+  // Anders, filter op geselecteerde projecten
+  return tasks.filter(task => selectedProjects.includes(task.project_id));
+};
 
-// Fetch tasks function - must be defined before functions that use it
+  const fetchProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .order("last_used_at", { ascending: false, nullsFirst: false })
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching projects:", error);
+    } else {
+      setProjects(data);
+    }
+  }, []);
+
+  // Fetch tasks function - must be defined before functions that use it
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
       .from("tasks")
@@ -160,40 +173,33 @@ const fetchProjects = useCallback(async () => {
     setLoading(false);
   }, []);
 
-  
-
-useEffect(() => {
-  fetchProjects();
-}, [fetchProjects]);
-
-  
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   // Fetch tasks when component loads
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
-const deleteProjectTag = async (projectId) => {
-  if (!confirm("Are you sure you want to delete this project?")) {
-    return;
-  }
-  
-  const { error } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId);
-  
-  if (error) {
-    console.error("Error deleting project:", error);
-    return;
-  }
-  
-  fetchProjects();
-  fetchTasks();
-};
+  const deleteProjectTag = async (projectId) => {
+    if (!confirm("Are you sure you want to delete this project?")) {
+      return;
+    }
 
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", projectId);
 
+    if (error) {
+      console.error("Error deleting project:", error);
+      return;
+    }
 
+    fetchProjects();
+    fetchTasks();
+  };
 
   // Update task project
   const updateTaskProject = useCallback(
@@ -315,19 +321,24 @@ const deleteProjectTag = async (projectId) => {
     [tasks, pendingComplete]
   );
 
-  const sortedActiveTasks = useMemo(
-    () =>
-      sortByPriority
-        ? [...activeTasks].sort((a, b) => {
-            if (!a.priority_id) return 1;
-            if (!b.priority_id) return -1;
-            const levelA = a.priorities?.level || 0;
-            const levelB = b.priorities?.level || 0;
-            return levelB - levelA;
-          })
-        : activeTasks,
-    [activeTasks, sortByPriority]
-  );
+const sortedActiveTasks = useMemo(
+  () =>
+    sortByPriority
+      ? [...activeTasks].sort((a, b) => {
+          if (!a.priority_id) return 1;
+          if (!b.priority_id) return -1;
+          const levelA = a.priorities?.level || 0;
+          const levelB = b.priorities?.level || 0;
+          return levelB - levelA;
+        })
+      : activeTasks,
+  [activeTasks, sortByPriority]
+);
+
+const filteredActiveTasks = useMemo(
+  () => filterTasksByProjects(sortedActiveTasks),
+  [sortedActiveTasks, selectedProjects]
+);
 
   // Delete task functie (voeg toe bij je andere functies)
   const deleteTask = useCallback(async (taskId) => {
@@ -464,35 +475,39 @@ const deleteProjectTag = async (projectId) => {
     [tasks, confettiEnabled, soundEnabled]
   );
 
-  const addTask = useCallback(async () => {
-    if (!newTask.trim()) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert([
-          {
-            task: newTask,
-            user_id: session.user.id,
-            // priority_id en project_id zijn NULL (kun je later instellen)
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-
-      // Add to local state met optimistic update
-      setTasks((prevTasks) => [...prevTasks, data[0]]);
-
-      // Reset form
-      setNewTask("");
-      setIsAddingTask(false);
-      setNewProjectId(null);
-      setNewPriorityId(null);
-    } catch (error) {
-      console.error("Error adding task:", error.message);
-    }
-  }, [newTask, session.user.id]);
+const addTask = useCallback(async (projectId = newProjectId, priorityId = newPriorityId) => {
+  if (!newTask.trim()) return;
+  
+  try {
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([
+        {
+          task: newTask,
+          user_id: session.user.id,
+          project_id: projectId,   // ← Gebruik de parameter
+          priority_id: priorityId, // ← Gebruik de parameter
+        },
+      ])
+      .select(`
+        *,
+        projects(*),
+        priorities(*)
+      `);
+    
+    if (error) throw error;
+    
+    setTasks((prevTasks) => [...prevTasks, data[0]]);
+    
+    // Reset form
+    setNewTask("");
+    setIsAddingTask(false);
+    setNewProjectId(null);
+    setNewPriorityId(null);
+  } catch (error) {
+    console.error("Error adding task:", error.message);
+  }
+}, [newTask, newProjectId, newPriorityId, session.user.id]);
 
   const updateTaskPriority = useCallback(
     async (taskId, priorityId) => {
@@ -680,16 +695,9 @@ const deleteProjectTag = async (projectId) => {
     <div className="min-h-screen bg-background text-foreground p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-left">Welcome {userName}!</h1>
-          {/* Settings button (rechtsboven) */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
-            aria-label="Open settings"
-          >
-            <IoSettingsOutline className="w-5 h-5" />
-          </button>
+        <div className="flex justify-end items-center mb-8">
+          
+
 
           {/* Settings Sidebar */}
           <SettingsSidebar
@@ -704,78 +712,91 @@ const deleteProjectTag = async (projectId) => {
         </div>
 
         {/* Settings controls - rechts boven de tabel */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Tasks</h2>
-
-          <div className="flex gap-2">
-            {/* Confetti toggle */}
-            <button
-              onClick={handleToggleConfetti}
-              className="p-2 rounded-md hover:bg-muted transition-colors relative"
-              title={confettiEnabled ? "Disable confetti" : "Enable confetti"}
-            >
-              <IoSparklesOutline
-                className={cn(
-                  "w-5 h-5 transition-colors",
-                  confettiEnabled
-                    ? "text-cosmic-orange"
-                    : "text-muted-foreground"
-                )}
-              />
-            </button>
-
-            {/* Sound toggle */}
-            <button
-              onClick={handleToggleSound}
-              className="p-2 rounded-md hover:bg-muted transition-colors"
-              title={soundEnabled ? "Disable sound" : "Enable sound"}
-            >
-              {soundEnabled ? (
-                <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
-              ) : (
-                <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
-              )}
-            </button>
+        <div className="flex gap-6 justify-between items-start mb-4">
+          <div className="w-1/6 min-w-[100px] mt-[52px]">
+            <ProjectFilter
+              projects={projects}
+              selectedProjects={selectedProjects}
+              setSelectedProjects={setSelectedProjects}
+            />
           </div>
-        </div>
 
-        {/* Table */}
+          <div className="flex-1 items-start">
+            <div className="flex items-center justify-end mb-4">
+              
+              <div className="flex gap-2">
+                {/* Confetti toggle */}
+                <button
+                  onClick={handleToggleConfetti}
+                  className="p-2 rounded-md hover:bg-muted transition-colors relative"
+                  title={
+                    confettiEnabled ? "Disable confetti" : "Enable confetti"
+                  }
+                >
+                  <IoSparklesOutline
+                    className={cn(
+                      "w-5 h-5 transition-colors",
+                      confettiEnabled
+                        ? "text-cosmic-orange"
+                        : "text-muted-foreground"
+                    )}
+                  />
+                </button>
+                {/* Sound toggle */}
+                <button
+                  onClick={handleToggleSound}
+                  className="p-2 rounded-md hover:bg-muted transition-colors"
+                  title={soundEnabled ? "Disable sound" : "Enable sound"}
+                >
+                  {soundEnabled ? (
+                    <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
+                  ) : (
+                    <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
+                  )}
+                </button>
 
-        {/* Completed Tasks Table */}
-        {/* Today's Completed Tasks */}
+                          {/* Settings button (rechtsboven) */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-muted rounded-md transition-colors"
+            aria-label="Open settings"
+          >
+            <IoSettingsOutline className="w-5 h-5" />
+          </button>
+              </div>
+            </div>
 
-        {/* History - Previous Completed Tasks */}
-        {/* Active Tasks Table */}
-        <TaskTable
-          tasks={sortedActiveTasks}
-          type="active"
-          isAddingTask={isAddingTask}
-          setIsAddingTask={setIsAddingTask}
-          newTask={newTask}
-          setNewTask={setNewTask}
-          newProjectId={newProjectId}
-          setNewProjectId={setNewProjectId}
-          newPriorityId={newPriorityId}
-          setNewPriorityId={setNewPriorityId}
-          addTask={addTask}
-          toggleTask={toggleTask}
-          updateTaskProject={updateTaskProject}
-          updateTaskPriority={updateTaskPriority}
-          addNewProject={addNewProject}
-          projects={projects}
-          priorities={priorities}
-          pendingComplete={pendingComplete}
-          setTasks={setTasks}
-          supabase={supabase}
-          fetchTasks={fetchTasks}
-          BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
-          sortByPriority={sortByPriority}
-          setSortByPriority={setSortByPriority}
-          updateSetting={updateSetting}
-          deleteProjectTag={deleteProjectTag}
-        />
+            {/* Table */}
+            <TaskTable
+              tasks={filteredActiveTasks}
+              type="active"
+              isAddingTask={isAddingTask}
+              setIsAddingTask={setIsAddingTask}
+              newTask={newTask}
+              setNewTask={setNewTask}
+              newProjectId={newProjectId}
+              setNewProjectId={setNewProjectId}
+              newPriorityId={newPriorityId}
+              setNewPriorityId={setNewPriorityId}
+              addTask={addTask}
+              toggleTask={toggleTask}
+              updateTaskProject={updateTaskProject}
+              updateTaskPriority={updateTaskPriority}
+              addNewProject={addNewProject}
+              projects={projects}
+              priorities={priorities}
+              pendingComplete={pendingComplete}
+              setTasks={setTasks}
+              supabase={supabase}
+              fetchTasks={fetchTasks}
+              BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
+              sortByPriority={sortByPriority}
+              setSortByPriority={setSortByPriority}
+              updateSetting={updateSetting}
+              deleteProjectTag={deleteProjectTag}
+            />
 
-        {/* Today's Completed Tasks */}
+            {/* Today's Completed Tasks */}
         {todayCompleted.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
@@ -846,6 +867,10 @@ const deleteProjectTag = async (projectId) => {
             )}
           </div>
         )}
+          </div>
+        </div>
+
+        
       </div>
     </div>
   );

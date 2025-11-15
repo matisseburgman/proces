@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import {
   IoSwapVertical,
   IoTrashOutline,
 } from "react-icons/io5";
+
 import EditableText from "@/components/EditableText";
 import ProjectSelector from "@/components/ProjectSelector";
 import PrioritySelector from "@/components/PrioritySelector";
@@ -57,6 +58,9 @@ function TaskTable({
   const isActive = type === "active";
   const isCompleted = type === "completed";
   const isHistory = type === "history";
+  const newTaskInputRef = useRef(null);
+  const projectSelectorRef = useRef(null);
+  const prioritySelectorRef = useRef(null);
 
   // Memoize handlers to prevent unnecessary re-renders
   const handleSortToggle = useCallback(() => {
@@ -84,37 +88,64 @@ function TaskTable({
     [setTasks, supabase, fetchTasks]
   );
 
-  const handleNewTaskKeyDown = useCallback(
+  const handleNewTaskKeyDown = (e) => {
+    if (e.key === "Enter" && !newTask.trim()) {
+      // Niks doen als task leeg is
+      return;
+    }
+
+    if (
+      e.key === "Enter" &&
+      newTask.trim() &&
+      !newProjectId &&
+      !newPriorityId
+    ) {
+      // Enter zonder tags = direct saven
+      e.preventDefault();
+      addTask();
+      return;
+    }
+
+    if (e.key === "Tab" && newTask.trim()) {
+      // Tab naar project selector
+      e.preventDefault();
+      projectSelectorRef.current?.focus();
+      return;
+    }
+
+    if (e.key === "Escape") {
+      // Cancel alles
+      e.preventDefault();
+      setIsAddingTask(false);
+      setNewTask("");
+      setNewProjectId(null);
+      setNewPriorityId(null);
+    }
+  };
+
+  const handleNewTaskBlur = useCallback(
     (e) => {
-      if (e.key === "Enter" && newTask.trim()) {
-        e.preventDefault();
-        addTask();
+      // Check of we naar een selector klikken
+      const clickedElement = e.relatedTarget;
+
+      // Als we naar een selector div klikken, doe niks
+      if (
+        clickedElement &&
+        (projectSelectorRef.current?.contains(clickedElement) ||
+          prioritySelectorRef.current?.contains(clickedElement))
+      ) {
+        return;
       }
-      if (e.key === "Escape") {
-        e.preventDefault();
+
+      // Anders, save zoals normaal
+      if (newTask.trim()) {
+        addTask();
+      } else {
         setIsAddingTask(false);
-        setNewTask("");
-        setNewProjectId(null);
-        setNewPriorityId(null);
       }
     },
-    [
-      newTask,
-      addTask,
-      setIsAddingTask,
-      setNewTask,
-      setNewProjectId,
-      setNewPriorityId,
-    ]
+    [newTask, addTask, setIsAddingTask]
   );
-
-  const handleNewTaskBlur = useCallback(() => {
-    if (newTask.trim()) {
-      addTask();
-    } else {
-      setIsAddingTask(false);
-    }
-  }, [newTask, addTask, setIsAddingTask]);
 
   const handleStartAddingTask = useCallback(() => {
     setIsAddingTask(true);
@@ -126,9 +157,7 @@ function TaskTable({
         <Table>
           <TableHeader>
             <TableRow className="border-b border-border">
-              <TableHead className="w-13">
-                {isActive}
-              </TableHead>
+              <TableHead className="w-9">{isActive}</TableHead>
               <TableHead className="w-[80%]">Tasks</TableHead>
               <TableHead className="w-[20%]">Project</TableHead>
               <TableHead className="w-[117px]">
@@ -201,7 +230,7 @@ function TaskTable({
 
                   <TableCell
                     className={cn(
-                      "font-medium text-foreground",
+                      "text-foreground",
                       (isCompleted || isHistory) && "opacity-80",
                       isPending && "text-muted-foreground line-through"
                     )}
@@ -285,40 +314,51 @@ function TaskTable({
             })}
 
             {isActive && isAddingTask && (
-              <TableRow className="border-t border-border h-[48px]">
+              <TableRow className="border-t border-border">
                 <TableCell>
                   {/* Dashed circle checkbox preview */}
                   <div className="w-5 h-5 rounded-full border-[1px] rotate-90 border-dashed border-muted-foreground/40"></div>
                 </TableCell>
                 <TableCell>
                   <input
+                    ref={newTaskInputRef}
                     type="text"
                     placeholder="No task name yet"
                     value={newTask}
                     onChange={(e) => setNewTask(e.target.value)}
                     onKeyDown={handleNewTaskKeyDown}
-                    onBlur={handleNewTaskBlur}
+                    //onBlur={handleNewTaskBlur}
                     autoFocus
                     className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
                   />
                 </TableCell>
+
                 <TableCell>
                   {newTask.trim() && (
                     <ProjectSelector
+                      ref={projectSelectorRef}
                       projectId={newProjectId}
                       projects={projects}
                       onUpdate={(_, projectId) => setNewProjectId(projectId)}
                       onAddNew={addNewProject}
                       onDelete={deleteProjectTag}
+                      onComplete={(selectedProjectId) => {
+                        setNewProjectId(selectedProjectId);
+                        prioritySelectorRef.current?.focus();
+                      }}
                     />
                   )}
                 </TableCell>
                 <TableCell>
                   {newTask.trim() && (
                     <PrioritySelector
+                      ref={prioritySelectorRef}
                       priorityId={newPriorityId}
                       priorities={priorities}
                       onUpdate={(_, priorityId) => setNewPriorityId(priorityId)}
+                      onComplete={(selectedPriorityId) =>
+                        addTask(newProjectId, selectedPriorityId)
+                      }
                     />
                   )}
                 </TableCell>

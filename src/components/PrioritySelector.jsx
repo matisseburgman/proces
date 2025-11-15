@@ -8,8 +8,13 @@ import {
 import { createPortal } from "react-dom";
 import Tag from "@/components/ui/tag";
 
+import {
+  IoTrashOutline,
+  IoCreateOutline
+} from "react-icons/io5";
+
 const PrioritySelector = forwardRef(
-  ({ task, priorityId, priorities, onUpdate, disabled }, ref) => {
+  ({ task, priorityId, priorities, onUpdate, disabled, onComplete }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState({
       top: 0,
@@ -22,9 +27,11 @@ const PrioritySelector = forwardRef(
     const selectedPriorityId = task?.priority_id ?? priorityId;
     const currentPriority = priorities.find((p) => p.id === selectedPriorityId);
 
-    // Expose handleOpen via ref
+    // Expose focus method to parent
     useImperativeHandle(ref, () => ({
-      open: () => handleOpen(),
+      focus: () => {
+        triggerRef.current?.click();
+      }
     }));
 
     // Herbereken positie bij window resize
@@ -73,7 +80,7 @@ const PrioritySelector = forwardRef(
     }, [isOpen]);
 
     const handleOpen = () => {
-      if (disabled) return; // ← Voeg deze check toe
+      if (disabled) return;
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         setDropdownPosition({
@@ -83,12 +90,15 @@ const PrioritySelector = forwardRef(
         setIsOpen(true);
       }
     };
-
-    const handleSelect = (newPriorityId) => {
-      // Als we een task hebben, gebruik task.id, anders null
-      onUpdate(task?.id ?? null, newPriorityId);
-      setIsOpen(false);
-    };
+    
+const handleSelect = (newPriorityId) => {
+  onUpdate(task?.id ?? null, newPriorityId);
+  setIsOpen(false);
+  
+  if (onComplete) {
+    onComplete(newPriorityId); // ← Geef de ID mee!
+  }
+};
 
     return (
       <>
