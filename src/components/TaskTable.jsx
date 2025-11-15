@@ -39,6 +39,7 @@ function TaskTable({
   toggleTask,
   updateTaskProject,
   updateTaskPriority,
+  deleteProjectTag,
   addNewProject,
   projects,
   priorities,
@@ -97,7 +98,14 @@ function TaskTable({
         setNewPriorityId(null);
       }
     },
-    [newTask, addTask, setIsAddingTask, setNewTask, setNewProjectId, setNewPriorityId]
+    [
+      newTask,
+      addTask,
+      setIsAddingTask,
+      setNewTask,
+      setNewProjectId,
+      setNewPriorityId,
+    ]
   );
 
   const handleNewTaskBlur = useCallback(() => {
@@ -119,7 +127,7 @@ function TaskTable({
           <TableHeader>
             <TableRow className="border-b border-border">
               <TableHead className="w-13">
-                {isActive && <IoCheckmarkCircleOutline className="w-5 h-5" />}
+                {isActive}
               </TableHead>
               <TableHead className="w-[80%]">Tasks</TableHead>
               <TableHead className="w-[20%]">Project</TableHead>
@@ -130,7 +138,11 @@ function TaskTable({
                     <button
                       onClick={handleSortToggle}
                       className="flex items-center gap-1.5 px-2 py-2 rounded-md hover:bg-muted transition-colors group"
-                      aria-label={sortByPriority ? "Disable priority sorting" : "Enable priority sorting"}
+                      aria-label={
+                        sortByPriority
+                          ? "Disable priority sorting"
+                          : "Enable priority sorting"
+                      }
                     >
                       <IoSwapVertical
                         className={cn(
@@ -156,7 +168,10 @@ function TaskTable({
               return (
                 <TableRow
                   key={task.id}
-                  className={cn("border-t border-border last:h-[48px]", isCompleted && "opacity-60")}
+                  className={cn(
+                    "border-t border-border last:h-[48px]",
+                    isCompleted && "opacity-60"
+                  )}
                 >
                   <TableCell>
                     <button
@@ -166,9 +181,15 @@ function TaskTable({
                         "w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center",
                         "hover:border-primary transition-colors relative",
                         "before:absolute before:[inset:var(--click-area)] before:content-['']",
-                        task.completed ? "border-primary" : "border-muted-foreground"
+                        task.completed
+                          ? "border-primary"
+                          : "border-muted-foreground"
                       )}
-                      aria-label={task.completed ? "Mark task as incomplete" : "Mark task as complete"}
+                      aria-label={
+                        task.completed
+                          ? "Mark task as incomplete"
+                          : "Mark task as complete"
+                      }
                     >
                       {task.completed && (
                         <div className="w-3 h-3 rounded-full bg-primary" />
@@ -180,7 +201,7 @@ function TaskTable({
 
                   <TableCell
                     className={cn(
-                      "font-medium",
+                      "font-medium text-foreground",
                       (isCompleted || isHistory) && "opacity-80",
                       isPending && "text-muted-foreground line-through"
                     )}
@@ -215,10 +236,15 @@ function TaskTable({
                         onUpdate={updateTaskProject}
                         onAddNew={addNewProject}
                         disabled={isPending}
+                        onDelete={deleteProjectTag}
                       />
                     ) : (
                       task.projects && (
-                        <div className={cn((isCompleted || isHistory) && "opacity-80")}>
+                        <div
+                          className={cn(
+                            (isCompleted || isHistory) && "opacity-80"
+                          )}
+                        >
                           <Tag
                             name={task.projects.name}
                             color={task.projects.color}
@@ -240,7 +266,11 @@ function TaskTable({
                       />
                     ) : (
                       task.priorities && (
-                        <div className={cn((isCompleted || isHistory) && "opacity-80")}>
+                        <div
+                          className={cn(
+                            (isCompleted || isHistory) && "opacity-80"
+                          )}
+                        >
                           <Tag
                             name={task.priorities.name}
                             color={task.priorities.color}
@@ -279,6 +309,7 @@ function TaskTable({
                       projects={projects}
                       onUpdate={(_, projectId) => setNewProjectId(projectId)}
                       onAddNew={addNewProject}
+                      onDelete={deleteProjectTag}
                     />
                   )}
                 </TableCell>
@@ -297,23 +328,23 @@ function TaskTable({
         </Table>
       </div>
 
-{/* Button wrapper met vaste hoogte */}
-<div className="">
-  {isActive && !isAddingTask && (
-<button
-  onClick={handleStartAddingTask}
-  className="w-full h-[48px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
-  aria-label="Add new task"
->
-  <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:bg-muted group-hover:text-foreground group-hover:border group-hover:border-border border border-transparent">
-    <span>+</span>
-    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-      Add new task
-    </span>
-  </span>
-</button>
-  )}
-</div>
+      {/* Button wrapper met vaste hoogte */}
+      <div className="">
+        {isActive && !isAddingTask && (
+          <button
+            onClick={handleStartAddingTask}
+            className="w-full h-[48px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
+            aria-label="Add new task"
+          >
+            <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:bg-muted group-hover:text-foreground group-hover:border group-hover:border-border border border-transparent">
+              <span>+</span>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                Add new task
+              </span>
+            </span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

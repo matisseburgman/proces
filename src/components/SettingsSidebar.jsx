@@ -23,7 +23,7 @@ function SettingsSidebar({
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-80 bg-background border-l border-border z-50",
+          "fixed top-0 right-0 h-full w-120 bg-background border-l border-border z-50",
           "flex flex-col transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}

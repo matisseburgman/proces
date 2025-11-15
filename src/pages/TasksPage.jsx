@@ -116,25 +116,21 @@ export default function TasksPage({ session }) {
     };
   }, []);
 
-  useEffect(() => {
-    async function fetchProjects() {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("last_used_at", { ascending: false, nullsFirst: false }) // ← Sorteer op recent gebruikt
-        .order("name"); // ← Daarna alfabetisch als fallback
+const fetchProjects = useCallback(async () => {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .order("last_used_at", { ascending: false, nullsFirst: false })
+    .order("name");
+  
+  if (error) {
+    console.error("Error fetching projects:", error);
+  } else {
+    setProjects(data);
+  }
+}, []);
 
-      if (error) {
-        console.error("Error fetching projects:", error);
-      } else {
-        setProjects(data);
-      }
-    }
-
-    fetchProjects();
-  }, []);
-
-  // Fetch tasks function - must be defined before functions that use it
+// Fetch tasks function - must be defined before functions that use it
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
       .from("tasks")
@@ -164,10 +160,40 @@ export default function TasksPage({ session }) {
     setLoading(false);
   }, []);
 
+  
+
+useEffect(() => {
+  fetchProjects();
+}, [fetchProjects]);
+
+  
+
   // Fetch tasks when component loads
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+const deleteProjectTag = async (projectId) => {
+  if (!confirm("Are you sure you want to delete this project?")) {
+    return;
+  }
+  
+  const { error } = await supabase
+    .from("projects")
+    .delete()
+    .eq("id", projectId);
+  
+  if (error) {
+    console.error("Error deleting project:", error);
+    return;
+  }
+  
+  fetchProjects();
+  fetchTasks();
+};
+
+
+
 
   // Update task project
   const updateTaskProject = useCallback(
@@ -746,6 +772,7 @@ export default function TasksPage({ session }) {
           sortByPriority={sortByPriority}
           setSortByPriority={setSortByPriority}
           updateSetting={updateSetting}
+          deleteProjectTag={deleteProjectTag}
         />
 
         {/* Today's Completed Tasks */}

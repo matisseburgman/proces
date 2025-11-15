@@ -2,7 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Tag from "@/components/ui/tag";
 
-function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabled }) {
+// External libraries
+import {
+ IoTrashOutline
+} from "react-icons/io5";
+
+
+
+function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabled, onDelete}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -148,14 +155,32 @@ function ProjectSelector({ task, projectId, projects, onUpdate, onAddNew, disabl
           className="bg-background border border-border rounded-md shadow-lg z-[1010] min-w-[160px] py-1"
         >
           {/* Projects */}
-          {sortedProjects.map((project) => (
-            <div
-              key={project.id}
-              onClick={() => handleSelect(project.id)}
-              className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors flex items-center gap-2"
-            >
-              <Tag name={project.name} color={project.color} />
-            </div>
+{sortedProjects.map((project) => (
+  <div
+    key={project.id}
+    className="px-3 py-2 hover:bg-muted transition-colors flex items-center justify-between group"
+  >
+    <div
+      onClick={() => handleSelect(project.id)}
+      className="flex items-center gap-2 flex-1 cursor-pointer"
+    >
+      <Tag name={project.name} color={project.color} />
+    </div>
+    
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        if (confirm(`Delete "${project.name}" project?`)) {
+          onDelete(project.id);
+        }
+      }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted hover:text-red-500"
+      title="Delete project"
+    >
+      <IoTrashOutline className="w-4 h-4" />
+    </button>
+  </div>
+            
           ))}
 
           {/* No project optie */}
