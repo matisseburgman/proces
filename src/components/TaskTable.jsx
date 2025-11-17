@@ -198,7 +198,7 @@ function TaskTable({
                 <TableRow
                   key={task.id}
                   className={cn(
-                    "border-t border-border last:h-[48px]",
+                    "border-t border-border last:h-[47.5px]",
                     isCompleted && "opacity-60"
                   )}
                 >
@@ -316,7 +316,6 @@ function TaskTable({
             {isActive && isAddingTask && (
               <TableRow className="border-t border-border">
                 <TableCell>
-                  {/* Dashed circle checkbox preview */}
                   <div className="w-5 h-5 rounded-full border-[1px] rotate-90 border-dashed border-muted-foreground/40"></div>
                 </TableCell>
                 <TableCell>
@@ -327,14 +326,15 @@ function TaskTable({
                     value={newTask}
                     onChange={(e) => setNewTask(e.target.value)}
                     onKeyDown={handleNewTaskKeyDown}
-                    //onBlur={handleNewTaskBlur}
                     autoFocus
-                    className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
+                    className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground p-0 m-0 focus:outline-none focus:ring-0"
                   />
                 </TableCell>
 
-                <TableCell>
-                  {newTask.trim() && (
+                <TableCell className="py-1">
+                  {" "}
+                  {/* ← Zelfde py-1 als andere rows */}
+                  {newTask.trim() ? (
                     <ProjectSelector
                       ref={projectSelectorRef}
                       projectId={newProjectId}
@@ -347,10 +347,13 @@ function TaskTable({
                         prioritySelectorRef.current?.focus();
                       }}
                     />
+                  ) : (
+                    <div className="h-[28px]" />
                   )}
                 </TableCell>
-                <TableCell>
-                  {newTask.trim() && (
+
+                <TableCell className="py-1">
+                  {newTask.trim() ? (
                     <PrioritySelector
                       ref={prioritySelectorRef}
                       priorityId={newPriorityId}
@@ -360,6 +363,8 @@ function TaskTable({
                         addTask(newProjectId, selectedPriorityId)
                       }
                     />
+                  ) : (
+                    <div className="h-[28px]" />
                   )}
                 </TableCell>
               </TableRow>
@@ -373,7 +378,7 @@ function TaskTable({
         {isActive && !isAddingTask && (
           <button
             onClick={handleStartAddingTask}
-            className="w-full h-[48px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
+            className="w-full h-[48.5px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
             aria-label="Add new task"
           >
             <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:bg-muted group-hover:text-foreground group-hover:border group-hover:border-border border border-transparent">
