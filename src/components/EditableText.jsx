@@ -162,7 +162,6 @@ function EditableText({ value, onSave, placeholder = "", disabled = false }) {
             "text-foreground placeholder:text-muted-foreground",
             "focus:outline-none focus:ring-0",
             "p-0 m-0"
-    
           )}
         />
       </div>

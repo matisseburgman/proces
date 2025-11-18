@@ -124,28 +124,38 @@ function TaskTable({
   };
 
   const handleNewTaskBlur = useCallback(
-    (e) => {
-      // Check of we naar een selector klikken
-      const clickedElement = e.relatedTarget;
+  (e) => {
+    // Check of we naar een selector klikken
+    const clickedElement = e.relatedTarget;
 
-      // Als we naar een selector div klikken, doe niks
-      if (
-        clickedElement &&
-        (projectSelectorRef.current?.contains(clickedElement) ||
-          prioritySelectorRef.current?.contains(clickedElement))
-      ) {
-        return;
-      }
+    // Als we naar een selector div klikken, doe niks
+    if (
+      clickedElement &&
+      (projectSelectorRef.current?.contains(clickedElement) ||
+        prioritySelectorRef.current?.contains(clickedElement))
+    ) {
+      return;
+    }
 
-      // Anders, save zoals normaal
-      if (newTask.trim()) {
-        addTask();
-      } else {
-        setIsAddingTask(false);
+    // Wacht even voor dropdown clicks
+    setTimeout(() => {
+      // Check of een dropdown nog open is
+      const hasOpenDropdown = document.querySelector('[class*="z-[1010]"]');
+      
+      if (!hasOpenDropdown) {
+        // Geen dropdown open
+        if (newTask.trim()) {
+          // Save met de huidige tags
+          addTask(newProjectId, newPriorityId);
+        } else {
+          // Geen tekst -> cancel
+          setIsAddingTask(false);
+        }
       }
-    },
-    [newTask, addTask, setIsAddingTask]
-  );
+    }, 150);
+  },
+  [newTask, newProjectId, newPriorityId, addTask, setIsAddingTask]
+);
 
   const handleStartAddingTask = useCallback(() => {
     setIsAddingTask(true);
