@@ -25,6 +25,7 @@ const ProjectSelector = forwardRef(
       disabled,
       onDelete,
       onComplete,
+      onColorChange,
     },
     ref
   ) => {
@@ -43,6 +44,7 @@ const ProjectSelector = forwardRef(
       top: 0,
       left: 0,
     });
+
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -67,6 +69,11 @@ const ProjectSelector = forwardRef(
     // Sluit dropdown bij click buiten
     useEffect(() => {
       function handleClickOutside(event) {
+        // Als context menu open is, laat die z'n eigen outside click afhandelen
+        if (contextMenuOpen) {
+          return;
+        }
+
         if (
           triggerRef.current &&
           !triggerRef.current.contains(event.target) &&
@@ -85,7 +92,7 @@ const ProjectSelector = forwardRef(
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
-    }, [isOpen]);
+    }, [isOpen, contextMenuOpen]); // ← Voeg contextMenuOpen toe als dependency
 
     // Herbereken positie bij resize/scroll
     useEffect(() => {
@@ -116,6 +123,23 @@ const ProjectSelector = forwardRef(
         inputRef.current.focus();
       }
     }, [isAddingNew]);
+
+    // Close context menu on window resize
+useEffect(() => {
+  function handleResize() {
+    if (contextMenuOpen) {
+      setContextMenuOpen(null);
+    }
+  }
+
+  if (contextMenuOpen) {
+    window.addEventListener("resize", handleResize);
+  }
+
+  return () => {
+    window.removeEventListener("resize", handleResize);
+  };
+}, [contextMenuOpen]);
 
     const handleOpen = () => {
       if (disabled) return; // ← Voeg deze check toe
@@ -173,19 +197,9 @@ const ProjectSelector = forwardRef(
       const rect = e.currentTarget.getBoundingClientRect();
       setContextMenuPosition({
         top: rect.bottom + window.scrollY + 4,
-        left: rect.right + window.scrollX - 240, // 240px is breedte van menu
+        left: rect.right + window.scrollX - 240 - 4, // 240px is breedte van menu
       });
       setContextMenuOpen(project.id);
-    };
-
-    const handleRenameProject = async (projectId, newName) => {
-      // TODO: Implement rename in database via parent
-      console.log("Rename project:", projectId, newName);
-    };
-
-    const handleColorChange = async (projectId, newColor) => {
-      // TODO: Implement color change in database via parent
-      console.log("Change color:", projectId, newColor);
     };
 
     return (
@@ -207,18 +221,16 @@ const ProjectSelector = forwardRef(
         </div>
 
         {/* Context Menu */}
-{contextMenuOpen && (
-  <ProjectContextMenu
-    project={projects.find(p => p.id === contextMenuOpen)}
-    isOpen={!!contextMenuOpen}
-    onClose={() => setContextMenuOpen(null)}
-    position={contextMenuPosition}
-    onRename={handleRenameProject}
-    onDelete={onDelete}
-    onColorChange={handleColorChange}
-  />
-)}
-
+        {contextMenuOpen && (
+          <ProjectContextMenu
+            project={projects.find((p) => p.id === contextMenuOpen)}
+            isOpen={!!contextMenuOpen}
+            onClose={() => setContextMenuOpen(null)}
+            position={contextMenuPosition}
+            onDelete={onDelete}
+            onColorChange={onColorChange}
+          />
+        )}
 
         {/* Dropdown menu */}
         {isOpen &&
@@ -236,11 +248,11 @@ const ProjectSelector = forwardRef(
               {sortedProjects.map((project) => (
                 <div
                   key={project.id}
-                  className="px-3 py-2 hover:bg-muted transition-colors flex items-center justify-between group"
+                  className="px-3 py-2 hover:bg-muted/30 transition-colors flex items-center justify-between group"
                 >
                   <div
                     onClick={() => handleSelect(project.id)}
-                    className="flex items-center gap-2 flex-1 cursor-pointer"
+                    className="flex items-center gap-2 flex-1 cursor-pointer min-w-0"
                   >
                     <Tag name={project.name} color={project.color} />
                   </div>
@@ -248,7 +260,7 @@ const ProjectSelector = forwardRef(
                   {/* 3 dots menu button */}
                   <button
                     onClick={(e) => handleOpenContextMenu(e, project)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted flex-shrink-0"
                     title="More options"
                   >
                     <IoEllipsisHorizontal className="w-4 h-4" />

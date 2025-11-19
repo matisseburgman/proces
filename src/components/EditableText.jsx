@@ -174,7 +174,7 @@ function EditableText({ value, onSave, placeholder = "", disabled = false }) {
       onClick={handleStartEditing}
       onDoubleClick={handleStartEditing}
       className={cn(
-        "truncate  transition-opacity",
+        "truncate hover:opacity-80 transition-opacity",
         disabled ? "cursor-default" : "cursor-text"
       )}
       role={disabled ? undefined : "button"}

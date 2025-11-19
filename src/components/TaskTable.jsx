@@ -49,6 +49,7 @@ function TaskTable({
   supabase,
   fetchTasks,
   BUTTON_CLICK_AREA,
+  onColorChange,  // ← Voeg toe
 
   // Props voor sorting (alleen active)
   sortByPriority,
@@ -88,74 +89,47 @@ function TaskTable({
     [setTasks, supabase, fetchTasks]
   );
 
-  const handleNewTaskKeyDown = (e) => {
-    if (e.key === "Enter" && !newTask.trim()) {
-      // Niks doen als task leeg is
-      return;
-    }
+const handleNewTaskKeyDown = (e) => {
+  console.log("Key pressed:", e.key); // ← Moet werken!
+  
+  if (e.key === "Enter" && newTask.trim()) {
+    e.preventDefault();
+    addTask();
+  }
+  if (e.key === "Tab" && newTask.trim()) {
+    e.preventDefault();
+    projectSelectorRef.current?.focus();
+  }
+  if (e.key === "Escape") {
+    e.preventDefault();
+    setIsAddingTask(false);
+    setNewTask("");
+    setNewProjectId(null);
+    setNewPriorityId(null);
+  }
+};
 
-    if (
-      e.key === "Enter" &&
-      newTask.trim() &&
-      !newProjectId &&
-      !newPriorityId
-    ) {
-      // Enter zonder tags = direct saven
-      e.preventDefault();
-      addTask();
-      return;
-    }
 
-    if (e.key === "Tab" && newTask.trim()) {
-      // Tab naar project selector
-      e.preventDefault();
-      projectSelectorRef.current?.focus();
-      return;
-    }
 
-    if (e.key === "Escape") {
-      // Cancel alles
-      e.preventDefault();
-      setIsAddingTask(false);
-      setNewTask("");
-      setNewProjectId(null);
-      setNewPriorityId(null);
-    }
-  };
-
-  const handleNewTaskBlur = useCallback(
-  (e) => {
-    // Check of we naar een selector klikken
-    const clickedElement = e.relatedTarget;
-
-    // Als we naar een selector div klikken, doe niks
-    if (
-      clickedElement &&
-      (projectSelectorRef.current?.contains(clickedElement) ||
-        prioritySelectorRef.current?.contains(clickedElement))
-    ) {
-      return;
-    }
-
-    // Wacht even voor dropdown clicks
-    setTimeout(() => {
-      // Check of een dropdown nog open is
-      const hasOpenDropdown = document.querySelector('[class*="z-[1010]"]');
-      
-      if (!hasOpenDropdown) {
-        // Geen dropdown open
-        if (newTask.trim()) {
-          // Save met de huidige tags
-          addTask(newProjectId, newPriorityId);
-        } else {
-          // Geen tekst -> cancel
-          setIsAddingTask(false);
-        }
-      }
-    }, 150);
-  },
-  [newTask, newProjectId, newPriorityId, addTask, setIsAddingTask]
-);
+const handleNewTaskBlur = useCallback((e) => {
+  // Check of we naar een selector klikken
+  const clickedElement = e.relatedTarget;
+  
+  // Als we naar een selector div klikken, doe niks
+  if (clickedElement && (
+    projectSelectorRef.current?.contains(clickedElement) ||
+    prioritySelectorRef.current?.contains(clickedElement)
+  )) {
+    return;
+  }
+  
+  // Anders, save zoals normaal
+  if (newTask.trim()) {
+    addTask();
+  } else {
+    setIsAddingTask(false);
+  }
+}, [newTask, addTask, setIsAddingTask]);
 
   const handleStartAddingTask = useCallback(() => {
     setIsAddingTask(true);
@@ -166,7 +140,7 @@ function TaskTable({
       <div className="border border-border rounded-lg overflow-hidden ">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-border">
+            <TableRow className="border-b border-border hover:bg-transparent">
               <TableHead className="w-9">{isActive}</TableHead>
               <TableHead className="w-[80%]">Tasks</TableHead>
               <TableHead className="w-[20%]">Project</TableHead>
@@ -276,6 +250,8 @@ function TaskTable({
                         onAddNew={addNewProject}
                         disabled={isPending}
                         onDelete={deleteProjectTag}
+                        onColorChange={onColorChange}
+                        
                       />
                     ) : (
                       task.projects && (
@@ -326,6 +302,7 @@ function TaskTable({
             {isActive && isAddingTask && (
               <TableRow className="border-t border-border">
                 <TableCell>
+                  {/* Dashed circle checkbox preview */}
                   <div className="w-5 h-5 rounded-full border-[1px] rotate-90 border-dashed border-muted-foreground/40"></div>
                 </TableCell>
                 <TableCell>
@@ -336,45 +313,34 @@ function TaskTable({
                     value={newTask}
                     onChange={(e) => setNewTask(e.target.value)}
                     onKeyDown={handleNewTaskKeyDown}
+                    //onBlur={handleNewTaskBlur}
                     autoFocus
-                    className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground p-0 m-0 focus:outline-none focus:ring-0"
+                    className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
                   />
                 </TableCell>
 
-                <TableCell className="py-1">
-                  {" "}
-                  {/* ← Zelfde py-1 als andere rows */}
-                  {newTask.trim() ? (
+                <TableCell>
+                  {newTask.trim() && (
                     <ProjectSelector
-                      ref={projectSelectorRef}
                       projectId={newProjectId}
+                      ref={projectSelectorRef}  // ← Deze moet er staan!
                       projects={projects}
                       onUpdate={(_, projectId) => setNewProjectId(projectId)}
                       onAddNew={addNewProject}
                       onDelete={deleteProjectTag}
-                      onComplete={(selectedProjectId) => {
-                        setNewProjectId(selectedProjectId);
-                        prioritySelectorRef.current?.focus();
-                      }}
+                      onColorChange={onColorChange}
+                      
                     />
-                  ) : (
-                    <div className="h-[28px]" />
                   )}
                 </TableCell>
-
-                <TableCell className="py-1">
-                  {newTask.trim() ? (
+                <TableCell>
+                  {newTask.trim() && (
                     <PrioritySelector
-                      ref={prioritySelectorRef}
                       priorityId={newPriorityId}
+                      ref={prioritySelectorRef}  // ← En deze!
                       priorities={priorities}
                       onUpdate={(_, priorityId) => setNewPriorityId(priorityId)}
-                      onComplete={(selectedPriorityId) =>
-                        addTask(newProjectId, selectedPriorityId)
-                      }
                     />
-                  ) : (
-                    <div className="h-[28px]" />
                   )}
                 </TableCell>
               </TableRow>

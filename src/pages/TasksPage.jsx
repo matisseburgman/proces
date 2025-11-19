@@ -201,6 +201,24 @@ export default function TasksPage({ session }) {
     fetchTasks();
   };
 
+  const updateProjectColor = async (projectId, color) => {
+  try {
+    const { error } = await supabase
+      .from("projects")
+      .update({ color })
+      .eq("id", projectId);
+
+    if (error) throw error;
+
+    // Update local state
+    setProjects(prev =>
+      prev.map(p => p.id === projectId ? { ...p, color } : p)
+    );
+  } catch (error) {
+    console.error("Error updating project color:", error);
+  }
+};
+
   // Update task project
   const updateTaskProject = useCallback(
     async (taskId, projectId) => {
@@ -475,39 +493,35 @@ const filteredActiveTasks = useMemo(
     [tasks, confettiEnabled, soundEnabled]
   );
 
-const addTask = useCallback(async (projectId = newProjectId, priorityId = newPriorityId) => {
-  if (!newTask.trim()) return;
-  
-  try {
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert([
-        {
-          task: newTask,
-          user_id: session.user.id,
-          project_id: projectId,   // ← Gebruik de parameter
-          priority_id: priorityId, // ← Gebruik de parameter
-        },
-      ])
-      .select(`
-        *,
-        projects(*),
-        priorities(*)
-      `);
-    
-    if (error) throw error;
-    
-    setTasks((prevTasks) => [...prevTasks, data[0]]);
-    
-    // Reset form
-    setNewTask("");
-    setIsAddingTask(false);
-    setNewProjectId(null);
-    setNewPriorityId(null);
-  } catch (error) {
-    console.error("Error adding task:", error.message);
-  }
-}, [newTask, newProjectId, newPriorityId, session.user.id]);
+  const addTask = useCallback(async () => {
+    if (!newTask.trim()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert([
+          {
+            task: newTask,
+            user_id: session.user.id,
+            // priority_id en project_id zijn NULL (kun je later instellen)
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+
+      // Add to local state met optimistic update
+      setTasks((prevTasks) => [...prevTasks, data[0]]);
+
+      // Reset form
+      setNewTask("");
+      setIsAddingTask(false);
+      setNewProjectId(null);
+      setNewPriorityId(null);
+    } catch (error) {
+      console.error("Error adding task:", error.message);
+    }
+  }, [newTask, session.user.id]);
 
   const updateTaskPriority = useCallback(
     async (taskId, priorityId) => {
@@ -661,6 +675,37 @@ const addTask = useCallback(async (projectId = newProjectId, priorityId = newPri
     fetchPriorities();
   }, []);
 
+  // Close new task row when clicking outside
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (!isAddingTask) return;
+    
+    // Check of we binnen de task table zijn
+    const taskTable = event.target.closest('table');
+    const newTaskRow = event.target.closest('tr');
+    
+    // Als we buiten de table klikken, of in een andere row
+    if (!taskTable || !newTaskRow || !newTaskRow.querySelector('input[placeholder="No task name yet"]')) {
+      if (newTask.trim()) {
+        addTask(newProjectId, newPriorityId);
+      } else {
+        setIsAddingTask(false);
+        setNewTask("");
+        setNewProjectId(null);
+        setNewPriorityId(null);
+      }
+    }
+  }
+
+  if (isAddingTask) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [isAddingTask, newTask, newProjectId, newPriorityId, addTask, setIsAddingTask, setNewTask, setNewProjectId, setNewPriorityId]);
+
   const startEditing = (taskId, field, currentValue) => {
     setEditingTask(taskId);
     setEditingField(field);
@@ -794,6 +839,7 @@ const addTask = useCallback(async (projectId = newProjectId, priorityId = newPri
               setSortByPriority={setSortByPriority}
               updateSetting={updateSetting}
               deleteProjectTag={deleteProjectTag}
+              onColorChange={updateProjectColor}  // ← Voeg deze toe
             />
 
             {/* Today's Completed Tasks */}
