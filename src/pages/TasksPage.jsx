@@ -1,6 +1,8 @@
 // React core
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
+import { AiOutlineStar, AiFillStar } from "react-icons/ai";
+
 // External libraries
 import {
   IoEyeOutline,
@@ -72,6 +74,7 @@ export default function TasksPage({ session }) {
   // Constants
   const BUTTON_CLICK_AREA = 12; // px extra klikbare area rond buttons
   const userName = session?.user?.user_metadata?.full_name || "there";
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
 
   // Data state
   const [tasks, setTasks] = useState([]);
@@ -120,14 +123,14 @@ export default function TasksPage({ session }) {
   }, []);
 
   const filterTasksByProjects = (tasks) => {
-  // Als geen projecten geselecteerd zijn, toon alles
-  if (selectedProjects.length === 0) {
-    return tasks;
-  }
-  
-  // Anders, filter op geselecteerde projecten
-  return tasks.filter(task => selectedProjects.includes(task.project_id));
-};
+    // Als geen projecten geselecteerd zijn, toon alles
+    if (selectedProjects.length === 0) {
+      return tasks;
+    }
+
+    // Anders, filter op geselecteerde projecten
+    return tasks.filter((task) => selectedProjects.includes(task.project_id));
+  };
 
   const fetchProjects = useCallback(async () => {
     const { data, error } = await supabase
@@ -202,22 +205,22 @@ export default function TasksPage({ session }) {
   };
 
   const updateProjectColor = async (projectId, color) => {
-  try {
-    const { error } = await supabase
-      .from("projects")
-      .update({ color })
-      .eq("id", projectId);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ color })
+        .eq("id", projectId);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Update local state
-    setProjects(prev =>
-      prev.map(p => p.id === projectId ? { ...p, color } : p)
-    );
-  } catch (error) {
-    console.error("Error updating project color:", error);
-  }
-};
+      // Update local state
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, color } : p))
+      );
+    } catch (error) {
+      console.error("Error updating project color:", error);
+    }
+  };
 
   // Update task project
   const updateTaskProject = useCallback(
@@ -339,24 +342,30 @@ export default function TasksPage({ session }) {
     [tasks, pendingComplete]
   );
 
-const sortedActiveTasks = useMemo(
-  () =>
-    sortByPriority
-      ? [...activeTasks].sort((a, b) => {
-          if (!a.priority_id) return 1;
-          if (!b.priority_id) return -1;
-          const levelA = a.priorities?.level || 0;
-          const levelB = b.priorities?.level || 0;
-          return levelB - levelA;
-        })
-      : activeTasks,
-  [activeTasks, sortByPriority]
-);
+  const sortedActiveTasks = useMemo(
+    () =>
+      sortByPriority
+        ? [...activeTasks].sort((a, b) => {
+            if (!a.priority_id) return 1;
+            if (!b.priority_id) return -1;
+            const levelA = a.priorities?.level || 0;
+            const levelB = b.priorities?.level || 0;
+            return levelB - levelA;
+          })
+        : activeTasks,
+    [activeTasks, sortByPriority]
+  );
 
-const filteredActiveTasks = useMemo(
-  () => filterTasksByProjects(sortedActiveTasks),
-  [sortedActiveTasks, selectedProjects]
-);
+  const filteredActiveTasks = useMemo(() => {
+    let filtered = filterTasksByProjects(sortedActiveTasks);
+
+    // Filter op starred als showStarredOnly aan staat
+    if (showStarredOnly) {
+      filtered = filtered.filter((task) => task.is_starred);
+    }
+
+    return filtered;
+  }, [sortedActiveTasks, selectedProjects, showStarredOnly]);
 
   // Delete task functie (voeg toe bij je andere functies)
   const deleteTask = useCallback(async (taskId) => {
@@ -388,6 +397,29 @@ const filteredActiveTasks = useMemo(
       timeoutRefs.current.clear();
     };
   }, []);
+
+  const toggleTaskStar = useCallback(
+    async (taskId, isStarred) => {
+      // Optimistic update
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId ? { ...t, is_starred: isStarred } : t
+        )
+      );
+
+      // Database update
+      const { error } = await supabase
+        .from("tasks")
+        .update({ is_starred: isStarred })
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Error updating star:", error);
+        fetchTasks();
+      }
+    },
+    [fetchTasks] // Dit klopt zo
+  );
 
   const toggleTask = useCallback(
     async (taskId, clickEvent) => {
@@ -676,35 +708,49 @@ const filteredActiveTasks = useMemo(
   }, []);
 
   // Close new task row when clicking outside
-useEffect(() => {
-  function handleClickOutside(event) {
-    if (!isAddingTask) return;
-    
-    // Check of we binnen de task table zijn
-    const taskTable = event.target.closest('table');
-    const newTaskRow = event.target.closest('tr');
-    
-    // Als we buiten de table klikken, of in een andere row
-    if (!taskTable || !newTaskRow || !newTaskRow.querySelector('input[placeholder="No task name yet"]')) {
-      if (newTask.trim()) {
-        addTask(newProjectId, newPriorityId);
-      } else {
-        setIsAddingTask(false);
-        setNewTask("");
-        setNewProjectId(null);
-        setNewPriorityId(null);
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!isAddingTask) return;
+
+      // Check of we binnen de task table zijn
+      const taskTable = event.target.closest("table");
+      const newTaskRow = event.target.closest("tr");
+
+      // Als we buiten de table klikken, of in een andere row
+      if (
+        !taskTable ||
+        !newTaskRow ||
+        !newTaskRow.querySelector('input[placeholder="No task name yet"]')
+      ) {
+        if (newTask.trim()) {
+          addTask(newProjectId, newPriorityId);
+        } else {
+          setIsAddingTask(false);
+          setNewTask("");
+          setNewProjectId(null);
+          setNewPriorityId(null);
+        }
       }
     }
-  }
 
-  if (isAddingTask) {
-    document.addEventListener("mousedown", handleClickOutside);
-  }
+    if (isAddingTask) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
 
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, [isAddingTask, newTask, newProjectId, newPriorityId, addTask, setIsAddingTask, setNewTask, setNewProjectId, setNewPriorityId]);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [
+    isAddingTask,
+    newTask,
+    newProjectId,
+    newPriorityId,
+    addTask,
+    setIsAddingTask,
+    setNewTask,
+    setNewProjectId,
+    setNewPriorityId,
+  ]);
 
   const startEditing = (taskId, field, currentValue) => {
     setEditingTask(taskId);
@@ -741,9 +787,6 @@ useEffect(() => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex justify-end items-center mb-8">
-          
-
-
           {/* Settings Sidebar */}
           <SettingsSidebar
             isOpen={isSettingsOpen}
@@ -768,53 +811,94 @@ useEffect(() => {
 
           <div className="flex-1 items-start">
             <div className="flex items-center justify-end mb-4">
-              
-              <div className="flex gap-2">
-                {/* Confetti toggle */}
-                <button
-                  onClick={handleToggleConfetti}
-                  className="p-2 rounded-md hover:bg-muted transition-colors relative"
-                  title={
-                    confettiEnabled ? "Disable confetti" : "Enable confetti"
-                  }
-                >
-                  <IoSparklesOutline
-                    className={cn(
-                      "w-5 h-5 transition-colors",
-                      confettiEnabled
-                        ? "text-cosmic-orange"
-                        : "text-muted-foreground"
+              <div className="flex gap-2 justify-between w-full">
+                {" "}
+                {/* ← Voeg justify-between en w-full toe */}
+                {/* LINKER GROEP */}
+                <div className="flex gap-2">
+                  {/* Star filter toggle */}
+                  <button
+                    onClick={() => setShowStarredOnly(!showStarredOnly)}
+                    className="p-2 hover:bg-muted rounded transition-colors"
+                    title={
+                      showStarredOnly ? "Show all tasks" : "Show starred only"
+                    }
+                  >
+                    {showStarredOnly ? (
+                      <AiFillStar className="w-5 h-5 text-cosmic-orange" />
+                    ) : (
+                      <AiOutlineStar className="w-5 h-5 text-muted-foreground" />
                     )}
-                  />
-                </button>
-                {/* Sound toggle */}
-                <button
-                  onClick={handleToggleSound}
-                  className="p-2 rounded-md hover:bg-muted transition-colors"
-                  title={soundEnabled ? "Disable sound" : "Enable sound"}
-                >
-                  {soundEnabled ? (
-                    <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
-                  ) : (
-                    <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
-                  )}
-                </button>
+                  </button>
 
-                          {/* Settings button (rechtsboven) */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
-            aria-label="Open settings"
-          >
-            <IoSettingsOutline className="w-5 h-5" />
-          </button>
+                  {/* Show completed toggle */}
+                  <button
+                    onClick={handleToggleCompleted}
+                    className="p-2 hover:bg-muted rounded transition-colors"
+                    title={
+                      showCompleted
+                        ? "Hide completed tasks"
+                        : "Show completed tasks"
+                    }
+                  >
+                    {showCompleted ? (
+                      <IoEyeOutline className="w-5 h-5 text-cosmic-orange" />
+                    ) : (
+                      <IoEyeOffOutline className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+                {/* RECHTER GROEP */}
+                <div className="flex gap-2">
+                  {/* Confetti toggle */}
+                  <button
+                    onClick={handleToggleConfetti}
+                    className="p-2 rounded-md hover:bg-muted transition-colors relative"
+                    title={
+                      confettiEnabled ? "Disable confetti" : "Enable confetti"
+                    }
+                  >
+                    <IoSparklesOutline
+                      className={cn(
+                        "w-5 h-5 transition-colors",
+                        confettiEnabled
+                          ? "text-cosmic-orange"
+                          : "text-muted-foreground"
+                      )}
+                    />
+                  </button>
+
+                  {/* Sound toggle */}
+                  <button
+                    onClick={handleToggleSound}
+                    className="p-2 rounded-md hover:bg-muted transition-colors"
+                    title={soundEnabled ? "Disable sound" : "Enable sound"}
+                  >
+                    {soundEnabled ? (
+                      <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
+                    ) : (
+                      <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
+                    )}
+                  </button>
+
+                  {/* Settings button */}
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-2 hover:bg-muted rounded-md transition-colors"
+                    aria-label="Open settings"
+                  >
+                    <IoSettingsOutline className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Table */}
             <TaskTable
               tasks={filteredActiveTasks}
+              toggleTaskStar={toggleTaskStar}
               type="active"
+              showHeader={true}
               isAddingTask={isAddingTask}
               setIsAddingTask={setIsAddingTask}
               newTask={newTask}
@@ -839,84 +923,34 @@ useEffect(() => {
               setSortByPriority={setSortByPriority}
               updateSetting={updateSetting}
               deleteProjectTag={deleteProjectTag}
-              onColorChange={updateProjectColor}  // ← Voeg deze toe
+              onColorChange={updateProjectColor} // ← Voeg deze toe
             />
 
             {/* Today's Completed Tasks */}
-        {todayCompleted.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Today's Completed</h2>
-              <button
-                onClick={handleToggleCompleted}
-                className="p-2 hover:bg-muted rounded transition-colors"
-                title={
-                  showCompleted
-                    ? "Hide completed tasks"
-                    : "Show completed tasks"
-                }
-              >
-                {showCompleted ? (
-                  <IoEyeOutline className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <IoEyeOffOutline className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
+            {todayCompleted.length > 0 && showCompleted && (
+              <div className="mt-8 ">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl text-muted-foreground font-semibold">
+                    Today's Completed
+                  </h2>
+                </div>
 
-            {showCompleted && (
-              <TaskTable
-                tasks={todayCompleted}
-                type="completed"
-                toggleTask={toggleTask}
-                deleteTask={deleteTask}
-                projects={projects}
-                priorities={priorities}
-                pendingComplete={pendingComplete}
-                BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
-              />
+                <TaskTable
+                  tasks={todayCompleted}
+                  toggleTaskStar={toggleTaskStar}
+                  showHeader={false}
+                  type="completed"
+                  toggleTask={toggleTask}
+                  deleteTask={deleteTask}
+                  projects={projects}
+                  priorities={priorities}
+                  pendingComplete={pendingComplete}
+                  BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
+                />
+              </div>
             )}
-          </div>
-        )}
-
-        {/* History - Previous Completed Tasks */}
-        {historyCompleted.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-muted-foreground">
-                History
-              </h2>
-              <button
-                onClick={handleToggleHistory}
-                className="p-2 hover:bg-muted rounded transition-colors"
-                title={showHistory ? "Hide history" : "Show history"}
-              >
-                {showHistory ? (
-                  <IoEyeOutline className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <IoEyeOffOutline className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
-
-            {showHistory && (
-              <TaskTable
-                tasks={historyCompleted}
-                type="history"
-                toggleTask={toggleTask}
-                deleteTask={deleteTask}
-                projects={projects}
-                priorities={priorities}
-                pendingComplete={pendingComplete}
-                BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
-              />
-            )}
-          </div>
-        )}
           </div>
         </div>
-
-        
       </div>
     </div>
   );

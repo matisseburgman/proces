@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import Tag from "@/components/ui/tag";
 
 // External libraries
-import { IoTrashOutline, IoCreateOutline } from "react-icons/io5";
+
 import { IoEllipsisHorizontal } from "react-icons/io5";
 import ProjectContextMenu from "./ProjectContextMenu";
 
@@ -44,7 +44,6 @@ const ProjectSelector = forwardRef(
       top: 0,
       left: 0,
     });
-
 
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
@@ -125,28 +124,28 @@ const ProjectSelector = forwardRef(
     }, [isAddingNew]);
 
     // Close context menu on window resize
-useEffect(() => {
-  function handleResize() {
-    if (contextMenuOpen) {
-      setContextMenuOpen(null);
-    }
-  }
+    useEffect(() => {
+      function handleResize() {
+        if (contextMenuOpen) {
+          setContextMenuOpen(null);
+        }
+      }
 
-  if (contextMenuOpen) {
-    window.addEventListener("resize", handleResize);
-  }
+      if (contextMenuOpen) {
+        window.addEventListener("resize", handleResize);
+      }
 
-  return () => {
-    window.removeEventListener("resize", handleResize);
-  };
-}, [contextMenuOpen]);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }, [contextMenuOpen]);
 
     const handleOpen = () => {
       if (disabled) return; // ← Voeg deze check toe
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 4,
+          top: rect.bottom + window.scrollY + 2,
           left: rect.left + window.scrollX,
         });
         setIsOpen(true);
@@ -196,7 +195,7 @@ useEffect(() => {
       e.stopPropagation();
       const rect = e.currentTarget.getBoundingClientRect();
       setContextMenuPosition({
-        top: rect.bottom + window.scrollY + 4,
+        top: rect.bottom + window.scrollY + 6,
         left: rect.right + window.scrollX - 240 - 4, // 240px is breedte van menu
       });
       setContextMenuOpen(project.id);
@@ -208,15 +207,20 @@ useEffect(() => {
         <div
           ref={triggerRef}
           onClick={handleOpen}
-          className="cursor-pointer block min-w-0 w-full py-1" // ← Voeg py-1 toe
+          className={`cursor-pointer block min-w-0 w-full py-1 rounded-sm transition-all ${
+            !currentProject
+              ? "hover:ring-1 hover:ring-border hover:bg-muted"
+              : ""
+          }`}
         >
           {currentProject ? (
-            <Tag name={currentProject.name} color={currentProject.color} />
+            <div className="hover:brightness-125 transition-all">
+              <Tag name={currentProject.name} color={currentProject.color} />
+            </div>
           ) : (
             <span className="text-muted-foreground text-sm truncate">
               &nbsp;
             </span>
-            // ↑ Gebruik &nbsp; voor hoogte
           )}
         </div>
 
@@ -242,13 +246,13 @@ useEffect(() => {
                 top: `${dropdownPosition.top}px`,
                 left: `${dropdownPosition.left}px`,
               }}
-              className="bg-background border border-border rounded-md shadow-lg z-[1010] w-[270px] min-w-[120px] py-1"
+              className="bg-background border border-border rounded-md shadow-lg z-[1010] w-[270px] min-w-[120px]"
             >
               {/* Projects */}
               {sortedProjects.map((project) => (
                 <div
                   key={project.id}
-                  className="px-3 py-2 hover:bg-muted/30 transition-colors flex items-center justify-between group"
+                  className="px-3 min-h-[44px] hover:bg-muted/30 transition-colors flex items-center justify-between group"
                 >
                   <div
                     onClick={() => handleSelect(project.id)}
@@ -260,7 +264,7 @@ useEffect(() => {
                   {/* 3 dots menu button */}
                   <button
                     onClick={(e) => handleOpenContextMenu(e, project)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted flex-shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-muted"
                     title="More options"
                   >
                     <IoEllipsisHorizontal className="w-4 h-4" />
@@ -268,39 +272,46 @@ useEffect(() => {
                 </div>
               ))}
 
+              {/* Divider */}
+              <div className="border-t border-border"></div>
+
               {/* No project optie */}
               <div
                 onClick={() => handleSelect(null)}
-                className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors text-sm text-muted-foreground"
+                className="px-3 min-h-[44px] hover:bg-muted/30 cursor-pointer transition-colors text-sm text-muted-foreground flex items-center"
               >
                 No project
               </div>
 
               {/* Divider */}
-              <div className="border-t border-border my-1"></div>
+              <div className="border-t border-border"></div>
 
-              {/* Add new */}
-              {!isAddingNew ? (
-                <div
-                  onClick={() => setIsAddingNew(true)}
-                  className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                  <span className="text-lg">+</span>
-                  Add new
-                </div>
-              ) : (
-                <div className="px-3 py-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Project name..."
-                    className="w-full bg-transparent border border-border rounded-sm px-2 py-1 text-sm outline-none text-foreground"
-                  />
-                </div>
-              )}
+{/* Add new */}
+{!isAddingNew ? (
+  <div
+    onClick={() => setIsAddingNew(true)}
+    className="px-3 min-h-[44px] hover:bg-muted/30 cursor-pointer transition-colors flex items-center gap-2 text-sm text-muted-foreground group"
+  >
+    <span className=" py-1.5 rounded-md flex items-center gap-2  group-hover:text-foreground transition-all">
+      <span>+</span>
+      <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+        Add new project
+      </span>
+    </span>
+  </div>
+) : (
+  <div className="px-3 min-h-[48px] flex items-center">
+    <input
+      ref={inputRef}
+      type="text"
+      value={newProjectName}
+      onChange={(e) => setNewProjectName(e.target.value)}
+      onKeyDown={handleKeyDown}
+      placeholder="Project name..."
+      className="w-full py-2 px-2 bg-transparent border-0 focus:border-0 focus:ring-0 rounded-sm text-sm outline-none text-foreground placeholder:text-muted-foreground"
+    />
+  </div>
+)}
             </div>,
             document.body
           )}

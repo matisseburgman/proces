@@ -8,10 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import Tag from "@/components/ui/tag";
 
-import {
-  IoTrashOutline,
-  IoCreateOutline
-} from "react-icons/io5";
+import { IoTrashOutline, IoCreateOutline } from "react-icons/io5";
 
 const PrioritySelector = forwardRef(
   ({ task, priorityId, priorities, onUpdate, disabled, onComplete }, ref) => {
@@ -31,7 +28,7 @@ const PrioritySelector = forwardRef(
     useImperativeHandle(ref, () => ({
       focus: () => {
         triggerRef.current?.click();
-      }
+      },
     }));
 
     // Herbereken positie bij window resize
@@ -90,32 +87,35 @@ const PrioritySelector = forwardRef(
         setIsOpen(true);
       }
     };
-    
-const handleSelect = (newPriorityId) => {
-  onUpdate(task?.id ?? null, newPriorityId);
-  setIsOpen(false);
-  
-  if (onComplete) {
-    onComplete(newPriorityId); // ← Geef de ID mee!
-  }
-};
+
+    const handleSelect = (newPriorityId) => {
+      onUpdate(task?.id ?? null, newPriorityId);
+      setIsOpen(false);
+
+      if (onComplete) {
+        onComplete(newPriorityId);
+      }
+    };
 
     return (
       <>
-        {/* Trigger */}
-        <div
-          ref={triggerRef}
-          onClick={handleOpen}
-          className="cursor-pointer block min-w-0 w-full py-1"
-        >
-          {currentPriority ? (
-            <Tag name={currentPriority.name} color={currentPriority.color} />
-          ) : (
-            <span className="text-muted-foreground text-sm truncate">
-              &nbsp;
-            </span>
-          )}
-        </div>
+<div
+  ref={triggerRef}
+  onClick={handleOpen}
+  className={`cursor-pointer block min-w-0 w-full py-1 rounded-sm transition-all ${
+    !currentPriority ? 'hover:ring-1 hover:ring-border hover:bg-muted' : ''
+  }`}
+>
+  {currentPriority ? (
+    <div className="hover:brightness-120 transition-all">
+      <Tag name={currentPriority.name} color={currentPriority.color} />
+    </div>
+  ) : (
+    <span className="text-muted-foreground text-sm truncate">
+      &nbsp;
+    </span>
+  )}
+</div>
 
         {/* Dropdown menu - rendered as Portal */}
         {isOpen &&
@@ -127,26 +127,26 @@ const handleSelect = (newPriorityId) => {
                 top: `${dropdownPosition.top}px`,
                 left: `${dropdownPosition.left}px`,
               }}
-              className="bg-background border border-border rounded-md shadow-lg z-[1010] min-w-[120px] py-1"
+              className="bg-background border border-border rounded-md shadow-lg z-[1010] min-w-[120px]"
             >
-              {/* Priorities EERST */}
+              {/* Priorities */}
               {priorities.map((priority) => (
                 <div
                   key={priority.id}
                   onClick={() => handleSelect(priority.id)}
-                  className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors flex items-center gap-2"
+                  className="px-3 min-h-[44px] hover:bg-muted/30 cursor-pointer transition-colors flex items-center gap-2"
                 >
                   <Tag name={priority.name} color={priority.color} />
                 </div>
               ))}
 
               {/* Divider */}
-              <div className="border-t border-border my-1"></div>
+              <div className="border-t border-border"></div>
 
-              {/* No priority optie ONDERAAN */}
+              {/* No priority */}
               <div
                 onClick={() => handleSelect(null)}
-                className="px-3 py-2 hover:bg-muted cursor-pointer transition-colors text-sm text-muted-foreground"
+                className="px-3 min-h-[44px] hover:bg-muted/30 cursor-pointer transition-colors text-sm text-muted-foreground flex items-center"
               >
                 No priority
               </div>

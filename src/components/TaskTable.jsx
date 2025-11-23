@@ -8,6 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import StarButton from "@/components/StarButton";
+
 import {
   IoCheckmarkCircleOutline,
   IoSwapVertical,
@@ -23,6 +25,8 @@ import { cn } from "@/lib/utils";
 function TaskTable({
   tasks,
   type = "active", // "active" | "completed" | "history"
+  showHeader,
+  toggleTaskStar, // ← Voeg toe
 
   // Props voor active tasks
   isAddingTask,
@@ -49,7 +53,7 @@ function TaskTable({
   supabase,
   fetchTasks,
   BUTTON_CLICK_AREA,
-  onColorChange,  // ← Voeg toe
+  onColorChange, // ← Voeg toe
 
   // Props voor sorting (alleen active)
   sortByPriority,
@@ -89,47 +93,49 @@ function TaskTable({
     [setTasks, supabase, fetchTasks]
   );
 
-const handleNewTaskKeyDown = (e) => {
-  console.log("Key pressed:", e.key); // ← Moet werken!
-  
-  if (e.key === "Enter" && newTask.trim()) {
-    e.preventDefault();
-    addTask();
-  }
-  if (e.key === "Tab" && newTask.trim()) {
-    e.preventDefault();
-    projectSelectorRef.current?.focus();
-  }
-  if (e.key === "Escape") {
-    e.preventDefault();
-    setIsAddingTask(false);
-    setNewTask("");
-    setNewProjectId(null);
-    setNewPriorityId(null);
-  }
-};
+  const handleNewTaskKeyDown = (e) => {
+    console.log("Key pressed:", e.key); // ← Moet werken!
 
+    if (e.key === "Enter" && newTask.trim()) {
+      e.preventDefault();
+      addTask();
+    }
+    if (e.key === "Tab" && newTask.trim()) {
+      e.preventDefault();
+      projectSelectorRef.current?.focus();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsAddingTask(false);
+      setNewTask("");
+      setNewProjectId(null);
+      setNewPriorityId(null);
+    }
+  };
 
+  const handleNewTaskBlur = useCallback(
+    (e) => {
+      // Check of we naar een selector klikken
+      const clickedElement = e.relatedTarget;
 
-const handleNewTaskBlur = useCallback((e) => {
-  // Check of we naar een selector klikken
-  const clickedElement = e.relatedTarget;
-  
-  // Als we naar een selector div klikken, doe niks
-  if (clickedElement && (
-    projectSelectorRef.current?.contains(clickedElement) ||
-    prioritySelectorRef.current?.contains(clickedElement)
-  )) {
-    return;
-  }
-  
-  // Anders, save zoals normaal
-  if (newTask.trim()) {
-    addTask();
-  } else {
-    setIsAddingTask(false);
-  }
-}, [newTask, addTask, setIsAddingTask]);
+      // Als we naar een selector div klikken, doe niks
+      if (
+        clickedElement &&
+        (projectSelectorRef.current?.contains(clickedElement) ||
+          prioritySelectorRef.current?.contains(clickedElement))
+      ) {
+        return;
+      }
+
+      // Anders, save zoals normaal
+      if (newTask.trim()) {
+        addTask();
+      } else {
+        setIsAddingTask(false);
+      }
+    },
+    [newTask, addTask, setIsAddingTask]
+  );
 
   const handleStartAddingTask = useCallback(() => {
     setIsAddingTask(true);
@@ -137,42 +143,44 @@ const handleNewTaskBlur = useCallback((e) => {
 
   return (
     <div className={cn(isHistory && "opacity-50")}>
-      <div className="border border-border rounded-lg overflow-hidden ">
+      <div className="border border-border rounded-lg overflow-visible ">
         <Table>
-          <TableHeader>
-            <TableRow className="border-b border-border hover:bg-transparent">
-              <TableHead className="w-9">{isActive}</TableHead>
-              <TableHead className="w-[80%]">Tasks</TableHead>
-              <TableHead className="w-[20%]">Project</TableHead>
-              <TableHead className="w-[117px]">
-                {isActive ? (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Prio</span>
-                    <button
-                      onClick={handleSortToggle}
-                      className="flex items-center gap-1.5 px-2 py-2 rounded-md hover:bg-muted transition-colors group"
-                      aria-label={
-                        sortByPriority
-                          ? "Disable priority sorting"
-                          : "Enable priority sorting"
-                      }
-                    >
-                      <IoSwapVertical
-                        className={cn(
-                          "transition-colors",
+          {showHeader && (
+            <TableHeader>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="w-9 ">{isActive}</TableHead>
+                <TableHead className="w-[80%]">Tasks</TableHead>
+                <TableHead className="w-[20%]">Project</TableHead>
+                <TableHead className="w-[117px]">
+                  {isActive ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Prio</span>
+                      <button
+                        onClick={handleSortToggle}
+                        className="flex items-center gap-1.5 px-2 py-2 rounded-md hover:bg-muted transition-colors group"
+                        aria-label={
                           sortByPriority
-                            ? "text-cosmic-orange"
-                            : "text-muted-foreground group-hover:text-foreground"
-                        )}
-                      />
-                    </button>
-                  </div>
-                ) : (
-                  "Prio"
-                )}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+                            ? "Disable priority sorting"
+                            : "Enable priority sorting"
+                        }
+                      >
+                        <IoSwapVertical
+                          className={cn(
+                            "transition-colors",
+                            sortByPriority
+                              ? "text-cosmic-orange"
+                              : "text-muted-foreground group-hover:text-foreground"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  ) : (
+                    "Prio"
+                  )}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+          )}
 
           <TableBody>
             {tasks.map((task) => {
@@ -182,11 +190,12 @@ const handleNewTaskBlur = useCallback((e) => {
                 <TableRow
                   key={task.id}
                   className={cn(
-                    "border-t border-border last:h-[47.5px]",
+                    "border-t border-border last:h-[47.5px] relative group",
+                    !showHeader && "first:border-t-0", // ← Verwijder alleen de eerste border als er geen header is
                     isCompleted && "opacity-60"
                   )}
                 >
-                  <TableCell>
+                  <TableCell className="w-9">
                     <button
                       onClick={(e) => toggleTask(task.id, e)}
                       style={{ "--click-area": `-${BUTTON_CLICK_AREA}px` }}
@@ -211,9 +220,9 @@ const handleNewTaskBlur = useCallback((e) => {
                   </TableCell>
 
                   {/* Task field */}
-
                   <TableCell
                     className={cn(
+                      "w-[80%] relative", // ← Voeg 'relative' toe
                       "text-foreground",
                       (isCompleted || isHistory) && "opacity-80",
                       isPending && "text-muted-foreground line-through"
@@ -227,21 +236,14 @@ const handleNewTaskBlur = useCallback((e) => {
                         placeholder="Task name"
                       />
                     ) : (
-                      <div className="flex items-center justify-between group">
+                      <div className="flex items-center group">
                         <span className="truncate pr-2">{task.task}</span>
-                        <button
-                          onClick={() => deleteTask(task.id)}
-                          className="opacity-0 mr-[-8px] group-hover:opacity-100 transition-opacity p-2 rounded-md hover:bg-muted hover:text-red-500"
-                          title="Delete task"
-                        >
-                          <IoTrashOutline className="w-4 h-4" />
-                        </button>
                       </div>
                     )}
                   </TableCell>
 
                   {/* Project field */}
-                  <TableCell className="w-[25%] min-w-0 py-1">
+                  <TableCell className="w-[20%] min-w-0 py-1">
                     {isActive ? (
                       <ProjectSelector
                         task={task}
@@ -251,7 +253,6 @@ const handleNewTaskBlur = useCallback((e) => {
                         disabled={isPending}
                         onDelete={deleteProjectTag}
                         onColorChange={onColorChange}
-                        
                       />
                     ) : (
                       task.projects && (
@@ -271,7 +272,9 @@ const handleNewTaskBlur = useCallback((e) => {
                   </TableCell>
 
                   {/* Priority field */}
-                  <TableCell className="py-1">
+                  <TableCell className="w-[117px] py-1 relative">
+                    {" "}
+                    {/* ← Voeg 'relative' toe */}
                     {isActive ? (
                       <PrioritySelector
                         task={task}
@@ -289,10 +292,30 @@ const handleNewTaskBlur = useCallback((e) => {
                           <Tag
                             name={task.priorities.name}
                             color={task.priorities.color}
-                            variant="completed" // ← Voeg toe
+                            variant="completed"
                           />
                         </div>
                       )
+                    )}
+
+                    {/* Star button - alleen bij active tasks */}
+                    {type === "active" && (
+                      <div className=" transition-opacity">
+                        <StarButton task={task} onToggleStar={toggleTaskStar} />
+                      </div>
+                    )}
+
+                    {/* Delete button - alleen bij completed/history tasks */}
+                    {!isActive && (
+                      <div className="absolute right-[-40px] top-1/2 -translate-y-1/2 transition-opacity">
+                        <button
+                          onClick={() => deleteTask(task.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-md hover:text-red-500"
+                          title="Delete task"
+                        >
+                          <IoTrashOutline className="w-5 h-5" />
+                        </button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -300,7 +323,7 @@ const handleNewTaskBlur = useCallback((e) => {
             })}
 
             {isActive && isAddingTask && (
-              <TableRow className="border-t border-border">
+              <TableRow className="h-[48.5px] border-t border-border">
                 <TableCell>
                   {/* Dashed circle checkbox preview */}
                   <div className="w-5 h-5 rounded-full border-[1px] rotate-90 border-dashed border-muted-foreground/40"></div>
@@ -323,13 +346,12 @@ const handleNewTaskBlur = useCallback((e) => {
                   {newTask.trim() && (
                     <ProjectSelector
                       projectId={newProjectId}
-                      ref={projectSelectorRef}  // ← Deze moet er staan!
+                      ref={projectSelectorRef} // ← Deze moet er staan!
                       projects={projects}
                       onUpdate={(_, projectId) => setNewProjectId(projectId)}
                       onAddNew={addNewProject}
                       onDelete={deleteProjectTag}
                       onColorChange={onColorChange}
-                      
                     />
                   )}
                 </TableCell>
@@ -337,7 +359,7 @@ const handleNewTaskBlur = useCallback((e) => {
                   {newTask.trim() && (
                     <PrioritySelector
                       priorityId={newPriorityId}
-                      ref={prioritySelectorRef}  // ← En deze!
+                      ref={prioritySelectorRef} // ← En deze!
                       priorities={priorities}
                       onUpdate={(_, priorityId) => setNewPriorityId(priorityId)}
                     />
@@ -354,10 +376,10 @@ const handleNewTaskBlur = useCallback((e) => {
         {isActive && !isAddingTask && (
           <button
             onClick={handleStartAddingTask}
-            className="w-full h-[48.5px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
+            className="w-full h-[49px] text-left px-2 text-muted-foreground flex items-center gap-2 group rounded-b border border-transparent"
             aria-label="Add new task"
           >
-            <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:bg-muted group-hover:text-foreground group-hover:border group-hover:border-border border border-transparent">
+            <span className="text-sm transition-all px-3 py-1.5 rounded-md flex items-center gap-2 group-hover:text-foreground  border border-transparent">
               <span>+</span>
               <span className="opacity-0 group-hover:opacity-100 transition-opacity">
                 Add new task
