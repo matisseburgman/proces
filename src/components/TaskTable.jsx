@@ -67,13 +67,6 @@ function TaskTable({
   const projectSelectorRef = useRef(null);
   const prioritySelectorRef = useRef(null);
 
-  // Memoize handlers to prevent unnecessary re-renders
-  const handleSortToggle = useCallback(() => {
-    const newSortValue = !sortByPriority;
-    setSortByPriority(newSortValue);
-    updateSetting("sort_by_priority", newSortValue);
-  }, [sortByPriority, setSortByPriority, updateSetting]);
-
   const handleTaskSave = useCallback(
     async (taskId, newValue) => {
       setTasks((prevTasks) =>
@@ -143,45 +136,27 @@ function TaskTable({
 
   return (
     <div className={cn(isHistory && "opacity-50")}>
-      <div className="border border-border rounded-lg overflow-visible ">
-        <Table>
-          {showHeader && (
-            <TableHeader>
-              <TableRow className="border-b border-border hover:bg-transparent">
-                <TableHead className="w-9 ">{isActive}</TableHead>
-                <TableHead className="w-[80%]">Tasks</TableHead>
-                <TableHead className="w-[20%]">Project</TableHead>
-                <TableHead className="w-[117px]">
-                  {isActive ? (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Prio</span>
-                      <button
-                        onClick={handleSortToggle}
-                        className="flex items-center gap-1.5 px-2 py-2 rounded-md hover:bg-muted transition-colors group"
-                        aria-label={
-                          sortByPriority
-                            ? "Disable priority sorting"
-                            : "Enable priority sorting"
-                        }
-                      >
-                        <IoSwapVertical
-                          className={cn(
-                            "transition-colors",
-                            sortByPriority
-                              ? "text-cosmic-orange"
-                              : "text-muted-foreground group-hover:text-foreground"
-                          )}
-                        />
-                      </button>
-                    </div>
-                  ) : (
-                    "Prio"
-                  )}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-          )}
 
+<Table>
+        {/* Header alleen tonen als er tasks zijn OF als je aan het toevoegen bent */}
+        {(tasks.length > 0 || isAddingTask) && showHeader && (
+          <TableHeader>
+            <TableRow className="text-sm font-small hover:bg-transparent">
+              <TableHead className="w-9">{isActive}</TableHead>
+              <TableHead className="w-[80%]">Tasks</TableHead>
+              <TableHead className="w-[20%]">Projects</TableHead>
+              <TableHead className="w-[117px]">Prio's</TableHead>
+            </TableRow>
+          </TableHeader>
+        )}
+</Table>
+
+<div className={cn(
+  "rounded-lg overflow-visible",
+  (tasks.length > 0 || isAddingTask) && "border border-border"
+)}>
+      
+        <Table>
           <TableBody>
             {tasks.map((task) => {
               const isPending = pendingComplete.has(task.id);
@@ -191,7 +166,7 @@ function TaskTable({
                   key={task.id}
                   className={cn(
                     "border-t border-border last:h-[47.5px] relative group",
-                    !showHeader && "first:border-t-0", // ← Verwijder alleen de eerste border als er geen header is
+                    "first:border-t-0", // ← Verwijder alleen de eerste border als er geen header is
                     isCompleted && "opacity-60"
                   )}
                 >
@@ -297,14 +272,12 @@ function TaskTable({
                         </div>
                       )
                     )}
-
                     {/* Star button - alleen bij active tasks */}
                     {type === "active" && (
                       <div className=" transition-opacity">
                         <StarButton task={task} onToggleStar={toggleTaskStar} />
                       </div>
                     )}
-
                     {/* Delete button - alleen bij completed/history tasks */}
                     {!isActive && (
                       <div className="absolute right-[-40px] top-1/2 -translate-y-1/2 transition-opacity">
@@ -323,8 +296,8 @@ function TaskTable({
             })}
 
             {isActive && isAddingTask && (
-              <TableRow className="h-[48.5px] border-t border-border">
-                <TableCell>
+              <TableRow className="h-[48.5px]">
+                <TableCell className="w-9">
                   {/* Dashed circle checkbox preview */}
                   <div className="w-5 h-5 rounded-full border-[1px] rotate-90 border-dashed border-muted-foreground/40"></div>
                 </TableCell>

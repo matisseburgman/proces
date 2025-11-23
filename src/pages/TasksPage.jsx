@@ -665,6 +665,13 @@ export default function TasksPage({ session }) {
     [session.user.id]
   );
 
+  // Voeg deze toe bij je andere handler functies (rond regel 580)
+  const handleSortToggle = useCallback(() => {
+    const newValue = !sortByPriority;
+    setSortByPriority(newValue);
+    updateSetting("sort_by_priority", newValue);
+  }, [sortByPriority, updateSetting]);
+
   const handleToggleConfetti = useCallback(() => {
     const newValue = !confettiEnabled;
     setConfettiEnabled(newValue);
@@ -784,171 +791,191 @@ export default function TasksPage({ session }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+      <div className="mx-auto">
+        {/* Settings icons - 80% width */}
+        <div className="w-[80%] mx-auto mb-4">
+          <div className="flex gap-2 justify-between w-full">
+            {/* LINKER GROEP */}
+            <div className="flex gap-2">
+              {/* Star filter toggle */}
+              <button
+                onClick={() => setShowStarredOnly(!showStarredOnly)}
+                className="p-2 hover:bg-muted rounded transition-colors"
+                title={showStarredOnly ? "Show all tasks" : "Show starred only"}
+              >
+                {showStarredOnly ? (
+                  <AiFillStar className="w-5 h-5 text-cosmic-orange" />
+                ) : (
+                  <AiOutlineStar className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+
+              {/* Sort by priority button */}
+              <button
+                onClick={handleSortToggle}
+                className={cn(
+                  "p-2 rounded-md transition-colors flex items-center gap-1.5",
+                  sortByPriority
+                    ? "text-cosmic-orange"
+                    : "hover:bg-muted text-muted-foreground"
+                )}
+                title={
+                  sortByPriority
+                    ? "Disable priority sorting"
+                    : "Sort by priority"
+                }
+              >
+                <IoSwapVertical className="w-5 h-5" />
+              </button>
+
+              {/* Show completed toggle */}
+              <button
+                onClick={handleToggleCompleted}
+                className="p-2 hover:bg-muted rounded transition-colors"
+                title={
+                  showCompleted
+                    ? "Hide completed tasks"
+                    : "Show completed tasks"
+                }
+              >
+                {showCompleted ? (
+                  <IoEyeOutline className="w-5 h-5 text-cosmic-orange" />
+                ) : (
+                  <IoEyeOffOutline className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+            </div>
+
+            {/* RECHTER GROEP */}
+            <div className="flex gap-2">
+              {/* Confetti toggle */}
+              <button
+                onClick={handleToggleConfetti}
+                className="p-2 rounded-md hover:bg-muted transition-colors relative"
+                title={confettiEnabled ? "Disable confetti" : "Enable confetti"}
+              >
+                <IoSparklesOutline
+                  className={cn(
+                    "w-5 h-5 transition-colors",
+                    confettiEnabled
+                      ? "text-cosmic-orange"
+                      : "text-muted-foreground"
+                  )}
+                />
+              </button>
+
+              {/* Sound toggle */}
+              <button
+                onClick={handleToggleSound}
+                className="p-2 rounded-md hover:bg-muted transition-colors"
+                title={soundEnabled ? "Disable sound" : "Enable sound"}
+              >
+                {soundEnabled ? (
+                  <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
+                ) : (
+                  <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
+                )}
+              </button>
+
+              {/* Settings button */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 hover:bg-muted rounded-md transition-colors"
+                aria-label="Open settings"
+              >
+                <IoSettingsOutline className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Divider - 100% width */}
+        <div className="w-full border-t border-border mb-8"></div>
+
+        {/* Settings Sidebar */}
         <div className="flex justify-end items-center mb-8">
-          {/* Settings Sidebar */}
           <SettingsSidebar
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
             supabase={supabase}
             confettiEnabled={confettiEnabled}
             soundEnabled={soundEnabled}
-            onToggleConfetti={handleToggleConfetti} // ← Was toggleConfetti, nu handleToggleConfetti
-            onToggleSound={handleToggleSound} // ← Was toggleSound, nu handleToggleSound
+            onToggleConfetti={handleToggleConfetti}
+            onToggleSound={handleToggleSound}
           />
         </div>
 
-        {/* Settings controls - rechts boven de tabel */}
-        <div className="flex gap-6 justify-between items-start mb-4">
-          <div className="w-1/6 min-w-[100px] mt-[52px]">
-            <ProjectFilter
-              projects={projects}
-              selectedProjects={selectedProjects}
-              setSelectedProjects={setSelectedProjects}
-            />
-          </div>
-
-          <div className="flex-1 items-start">
-            <div className="flex items-center justify-end mb-4">
-              <div className="flex gap-2 justify-between w-full">
-                {" "}
-                {/* ← Voeg justify-between en w-full toe */}
-                {/* LINKER GROEP */}
-                <div className="flex gap-2">
-                  {/* Star filter toggle */}
-                  <button
-                    onClick={() => setShowStarredOnly(!showStarredOnly)}
-                    className="p-2 hover:bg-muted rounded transition-colors"
-                    title={
-                      showStarredOnly ? "Show all tasks" : "Show starred only"
-                    }
-                  >
-                    {showStarredOnly ? (
-                      <AiFillStar className="w-5 h-5 text-cosmic-orange" />
-                    ) : (
-                      <AiOutlineStar className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {/* Show completed toggle */}
-                  <button
-                    onClick={handleToggleCompleted}
-                    className="p-2 hover:bg-muted rounded transition-colors"
-                    title={
-                      showCompleted
-                        ? "Hide completed tasks"
-                        : "Show completed tasks"
-                    }
-                  >
-                    {showCompleted ? (
-                      <IoEyeOutline className="w-5 h-5 text-cosmic-orange" />
-                    ) : (
-                      <IoEyeOffOutline className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </button>
-                </div>
-                {/* RECHTER GROEP */}
-                <div className="flex gap-2">
-                  {/* Confetti toggle */}
-                  <button
-                    onClick={handleToggleConfetti}
-                    className="p-2 rounded-md hover:bg-muted transition-colors relative"
-                    title={
-                      confettiEnabled ? "Disable confetti" : "Enable confetti"
-                    }
-                  >
-                    <IoSparklesOutline
-                      className={cn(
-                        "w-5 h-5 transition-colors",
-                        confettiEnabled
-                          ? "text-cosmic-orange"
-                          : "text-muted-foreground"
-                      )}
-                    />
-                  </button>
-
-                  {/* Sound toggle */}
-                  <button
-                    onClick={handleToggleSound}
-                    className="p-2 rounded-md hover:bg-muted transition-colors"
-                    title={soundEnabled ? "Disable sound" : "Enable sound"}
-                  >
-                    {soundEnabled ? (
-                      <IoVolumeHighOutline className="w-5 h-5 text-cosmic-orange transition-colors" />
-                    ) : (
-                      <IoVolumeMuteOutline className="w-5 h-5 text-muted-foreground transition-colors" />
-                    )}
-                  </button>
-
-                  {/* Settings button */}
-                  <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-2 hover:bg-muted rounded-md transition-colors"
-                    aria-label="Open settings"
-                  >
-                    <IoSettingsOutline className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Table */}
-            <TaskTable
-              tasks={filteredActiveTasks}
-              toggleTaskStar={toggleTaskStar}
-              type="active"
-              showHeader={true}
-              isAddingTask={isAddingTask}
-              setIsAddingTask={setIsAddingTask}
-              newTask={newTask}
-              setNewTask={setNewTask}
-              newProjectId={newProjectId}
-              setNewProjectId={setNewProjectId}
-              newPriorityId={newPriorityId}
-              setNewPriorityId={setNewPriorityId}
-              addTask={addTask}
-              toggleTask={toggleTask}
-              updateTaskProject={updateTaskProject}
-              updateTaskPriority={updateTaskPriority}
-              addNewProject={addNewProject}
-              projects={projects}
-              priorities={priorities}
-              pendingComplete={pendingComplete}
-              setTasks={setTasks}
-              supabase={supabase}
-              fetchTasks={fetchTasks}
-              BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
-              sortByPriority={sortByPriority}
-              setSortByPriority={setSortByPriority}
-              updateSetting={updateSetting}
-              deleteProjectTag={deleteProjectTag}
-              onColorChange={updateProjectColor} // ← Voeg deze toe
-            />
-
-            {/* Today's Completed Tasks */}
-            {todayCompleted.length > 0 && showCompleted && (
-              <div className="mt-8 ">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl text-muted-foreground font-semibold">
-                    Today's Completed
-                  </h2>
-                </div>
-
-                <TaskTable
-                  tasks={todayCompleted}
-                  toggleTaskStar={toggleTaskStar}
-                  showHeader={false}
-                  type="completed"
-                  toggleTask={toggleTask}
-                  deleteTask={deleteTask}
+        {/* Content area - 80% width */}
+        <div className="w-[80%] mx-auto">
+          <div className="flex gap-6 justify-between items-start mb-4">
+            {activeTasks.length > 0 && (
+              <div className="w-1/6 min-w-[100px]">
+                <ProjectFilter
                   projects={projects}
-                  priorities={priorities}
-                  pendingComplete={pendingComplete}
-                  BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
+                  selectedProjects={selectedProjects}
+                  setSelectedProjects={setSelectedProjects}
                 />
               </div>
             )}
+
+            <div className="flex-1 items-start">
+              {/* Table */}
+              <TaskTable
+                tasks={filteredActiveTasks}
+                toggleTaskStar={toggleTaskStar}
+                type="active"
+                showHeader={true}
+                isAddingTask={isAddingTask}
+                setIsAddingTask={setIsAddingTask}
+                newTask={newTask}
+                setNewTask={setNewTask}
+                newProjectId={newProjectId}
+                setNewProjectId={setNewProjectId}
+                newPriorityId={newPriorityId}
+                setNewPriorityId={setNewPriorityId}
+                addTask={addTask}
+                toggleTask={toggleTask}
+                updateTaskProject={updateTaskProject}
+                updateTaskPriority={updateTaskPriority}
+                addNewProject={addNewProject}
+                projects={projects}
+                priorities={priorities}
+                pendingComplete={pendingComplete}
+                setTasks={setTasks}
+                supabase={supabase}
+                fetchTasks={fetchTasks}
+                BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
+                sortByPriority={sortByPriority}
+                setSortByPriority={setSortByPriority}
+                updateSetting={updateSetting}
+                deleteProjectTag={deleteProjectTag}
+                onColorChange={updateProjectColor}
+              />
+
+              {/* Today's Completed Tasks */}
+              {todayCompleted.length > 0 && showCompleted && (
+                <div className="mt-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl text-muted-foreground font-semibold">
+                      Today's Completed
+                    </h2>
+                  </div>
+
+                  <TaskTable
+                    tasks={todayCompleted}
+                    toggleTaskStar={toggleTaskStar}
+                    showHeader={false}
+                    type="completed"
+                    toggleTask={toggleTask}
+                    deleteTask={deleteTask}
+                    projects={projects}
+                    priorities={priorities}
+                    pendingComplete={pendingComplete}
+                    BUTTON_CLICK_AREA={BUTTON_CLICK_AREA}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
